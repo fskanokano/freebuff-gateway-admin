@@ -22,6 +22,7 @@ class ProxiesPage extends StatefulWidget {
 class _ProxiesPageState extends State<ProxiesPage> {
   bool _busy = false;
   bool _egressLoading = false;
+  String? _egressLoadingName; // 正在探测出口 IP 的代理名 (卡片按钮)
 
   Future<void> _run(Future<void> Function() action, {String? success}) async {
     if (_busy) return;
@@ -88,6 +89,47 @@ class _ProxiesPageState extends State<ProxiesPage> {
     await showShadDialog<void>(
       context: context,
       builder: (_) => _EgressDialog(results: results),
+    );
+  }
+
+  /// 卡片按钮: 只探测单个代理的出口 IP, 结果用 toast 展示。
+  Future<void> _probeEgressOne(ProxyInfo p) async {
+    final api = widget.state.api;
+    if (api == null || _egressLoadingName != null) return;
+    setState(() => _egressLoadingName = p.name);
+    try {
+      final results = await api.egress(name: p.name);
+      final r = results.isEmpty ? null : results.first;
+      if (!mounted) return;
+      if (r == null || !r.ok) {
+        showShadcnToast(
+            context, '${p.name} 出口 IP 探测失败${r?.error != null ? ': ${r!.error}' : ''}');
+      } else {
+        final loc = r.location;
+        final via = (r.provider != null && r.provider!.isNotEmpty)
+            ? ' · via ${r.provider}'
+            : '';
+        showShadcnToast(context,
+            '${p.name} 出口 IP: ${r.ip}${loc.isNotEmpty ? ' · $loc' : ''}$via');
+      }
+    } catch (e) {
+      if (mounted) showShadcnToast(context, '出口 IP 探测失败: $e');
+    } finally {
+      if (mounted) setState(() => _egressLoadingName = null);
+    }
+  }
+
+  Widget _egressButton(BuildContext context, ProxyInfo p) {
+    final loading = _egressLoadingName == p.name;
+    return TapFeedback(
+      onTap: _egressLoadingName != null ? null : () => _probeEgressOne(p),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: loading
+            ? const SizedBox(
+                width: 16, height: 16, child: CupertinoActivityIndicator())
+            : Icon(CupertinoIcons.globe, size: 17, color: mutedColor(context)),
+      ),
     );
   }
 
@@ -343,6 +385,8 @@ class _ProxiesPageState extends State<ProxiesPage> {
                 ),
                 const SizedBox(width: 10),
                 StatusBadge(p.status),
+                const SizedBox(width: 2),
+                _egressButton(context, p),
               ],
             ),
           ),

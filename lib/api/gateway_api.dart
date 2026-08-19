@@ -139,9 +139,12 @@ class GatewayApi {
         : <ProbeResult>[];
   }
 
-  /// 出口 IP 探测：聚合各代理的 /egress/ip。
-  Future<List<EgressInfo>> egress() async {
-    final j = await _get('/admin/api/egress');
+  /// 出口 IP 探测：聚合各代理的 /egress/ip；name 非空时只探测单个代理。
+  Future<List<EgressInfo>> egress({String? name}) async {
+    final path = (name == null || name.isEmpty)
+        ? '/admin/api/egress'
+        : '/admin/api/egress?name=${Uri.encodeComponent(name)}';
+    final j = await _get(path);
     return (j['results'] is List)
         ? (j['results'] as List)
             .whereType<Map>()
