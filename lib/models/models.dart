@@ -472,6 +472,59 @@ class ProxyConfig {
       };
 }
 
+/// 出口 IP 探测结果（来自 /admin/api/egress 的 results[]）。
+class EgressInfo {
+  EgressInfo({
+    this.name,
+    this.url,
+    this.ok = false,
+    this.cached = false,
+    this.ip,
+    this.country,
+    this.countryName,
+    this.region,
+    this.city,
+    this.provider,
+    this.error,
+  });
+
+  final String? name;
+  final String? url;
+  final bool ok;
+  final bool cached;
+  final String? ip;
+  final String? country;
+  final String? countryName;
+  final String? region;
+  final String? city;
+  final String? provider;
+  final String? error;
+
+  factory EgressInfo.fromJson(Map<String, dynamic> j) => EgressInfo(
+        name: _asStr(j['name']),
+        url: _asStr(j['url']),
+        ok: j['ok'] == true,
+        cached: j['cached'] == true,
+        ip: _asStr(j['ip']),
+        country: _asStr(j['country']),
+        countryName: _asStr(j['country_name']),
+        region: _asStr(j['region']),
+        city: _asStr(j['city']),
+        provider: _asStr(j['provider']),
+        error: _asStr(j['error']),
+      );
+
+  /// 位置摘要："United States · California · Los Angeles"，空则 ""。
+  String get location {
+    final parts = <String>[
+      if (countryName != null && countryName!.isNotEmpty) countryName!,
+      if (region != null && region!.isNotEmpty) region!,
+      if (city != null && city!.isNotEmpty && city != region) city!,
+    ];
+    return parts.join(' · ');
+  }
+}
+
 // ─────────────────────────── 工具 ───────────────────────────
 
 int? _asInt(dynamic v) {

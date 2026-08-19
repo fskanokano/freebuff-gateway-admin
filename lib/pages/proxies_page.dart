@@ -21,6 +21,7 @@ class ProxiesPage extends StatefulWidget {
 
 class _ProxiesPageState extends State<ProxiesPage> {
   bool _busy = false;
+  bool _egressLoading = false;
 
   Future<void> _run(Future<void> Function() action, {String? success}) async {
     if (_busy) return;
@@ -68,6 +69,26 @@ class _ProxiesPageState extends State<ProxiesPage> {
           results.map((r) => '${r.name}: ${statusLabel(r.status ?? '?')}').join('\n');
       if (mounted) showShadcnToast(context, '探测完成\n$lines');
     });
+  }
+
+  Future<void> _probeEgress() async {
+    final api = widget.state.api;
+    if (api == null || _egressLoading) return;
+    setState(() => _egressLoading = true);
+    List<EgressInfo> results;
+    try {
+      results = await api.egress();
+    } catch (e) {
+      if (mounted) showShadcnToast(context, '出口 IP 探测失败: $e');
+      if (mounted) setState(() => _egressLoading = false);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _egressLoading = false);
+    await showShadDialog<void>(
+      context: context,
+      builder: (_) => _EgressDialog(results: results),
+    );
   }
 
   Future<void> _unpin() async {
@@ -184,6 +205,19 @@ class _ProxiesPageState extends State<ProxiesPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          TapFeedback(
+            onTap: _egressLoading ? null : _probeEgress,
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: _egressLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CupertinoActivityIndicator())
+                  : const Icon(CupertinoIcons.globe, size: 20),
+            ),
+          ),
+          const SizedBox(width: 4),
           TapFeedback(
             onTap: _busy ? null : _probeAll,
             child: const Padding(
@@ -633,6 +667,99 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
         url: url.replaceAll(RegExp(r'/+$'), ''),
         apiKey: key,
         remark: remark.isEmpty ? null : remark,
+      ),
+    );
+  }
+}
+
+/// 出口 IP 探测结果对话框。
+class _EgressDialog extends StatelessWidget {
+  const _EgressDialog({required this.results});
+
+  final List<EgressInfo> results;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShadDialog(
+      title: const Text('出口 IP 探测'),
+      description: const Text('每个代理的公网出口 IP 与地理位置'),
+      // ignore: sort_child_properties_last
+      child: SizedBox(
+        width: 380,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 420),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: results.map((r) => _row(context, r)).toList(),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        ShadButton.outline(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('关闭'),
+        ),
+      ],
+    );
+  }
+
+  Widget _row(BuildContext context, EgressInfo r) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark(context)
+            ? const Color(0xFF1C1C20)
+            : const Color(0xFFF4F4F5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            r.ok
+                ? CupertinoIcons.globe
+                : CupertinoIcons.exclamationmark_triangle,
+            size: 16,
+            color: r.ok ? schemeColor(context) : ShadcnColors.danger,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(r.name ?? '?',
+                    style: ShadTheme.of(context)
+                        .textTheme
+                        .p
+                        .copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 3),
+                if (r.ok) ...[
+                  Text(r.ip ?? '—',
+                      style: ShadTheme.of(context)
+                          .textTheme
+                          .small
+                          .copyWith(fontFamily: 'monospace')),
+                  if (r.location.isNotEmpty)
+                    Text(r.location, style: ShadTheme.of(context).textTheme.small),
+                  if (r.provider != null && r.provider!.isNotEmpty)
+                    Text('via ${r.provider}',
+                        style: ShadTheme.of(context)
+                            .textTheme
+                            .small
+                            .copyWith(color: mutedColor(context))),
+                ] else
+                  Text(r.error ?? '探测失败',
+                      style: ShadTheme.of(context)
+                          .textTheme
+                          .small
+                          .copyWith(color: ShadcnColors.danger)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

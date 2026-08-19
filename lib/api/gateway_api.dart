@@ -139,6 +139,17 @@ class GatewayApi {
         : <ProbeResult>[];
   }
 
+  /// 出口 IP 探测：聚合各代理的 /egress/ip。
+  Future<List<EgressInfo>> egress() async {
+    final j = await _get('/admin/api/egress');
+    return (j['results'] is List)
+        ? (j['results'] as List)
+            .whereType<Map>()
+            .map((e) => EgressInfo.fromJson(e.cast<String, dynamic>()))
+            .toList()
+        : <EgressInfo>[];
+  }
+
   /// 清空日志。
   Future<void> clearLogs() async {
     await _post('/admin/api/logs/clear');
