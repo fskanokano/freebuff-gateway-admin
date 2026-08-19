@@ -51,17 +51,26 @@ class _ShellPageState extends State<ShellPage> {
   Widget build(BuildContext context) {
     final wide = MediaQuery.of(context).size.width >= 840;
     final content = IndexedStack(index: _index, children: _pages);
+    // Tab 切换: 内容区淡入（IndexedStack 保持各页状态）
+    final animated = TweenAnimationBuilder<double>(
+      key: ValueKey(_index),
+      tween: Tween(begin: 0.45, end: 1),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      child: content,
+    );
     return CupertinoPageScaffold(
       child: wide
           ? Row(
               children: [
                 _rail(context),
-                Expanded(child: content),
+                Expanded(child: animated),
               ],
             )
           : Column(
               children: [
-                Expanded(child: content),
+                Expanded(child: animated),
                 _bottomBar(context),
               ],
             ),

@@ -39,6 +39,7 @@ dependencies:
   http: ^1.2.2
   shared_preferences: ^2.3.3
   shadcn_ui: ^0.56.1
+  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:

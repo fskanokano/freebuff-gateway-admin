@@ -181,49 +181,20 @@ class _SmokePageState extends State<SmokePage> {
         ],
       );
     }
-    return ShadButton.outline(
-      onPressed: _models.isEmpty ? null : () => _showModelSheet(context),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              _models.isEmpty
-                  ? '无可用模型（可手动输入）'
-                  : (_model ?? '选择模型'),
-              style: TextStyle(
-                  fontSize: 13, color: fgColor(context)),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(CupertinoIcons.chevron_down, size: 13),
-        ],
-      ),
-    );
-  }
-
-  void _showModelSheet(BuildContext context) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: const Text('选择模型'),
-        actions: [
-          for (final m in _models)
-            CupertinoActionSheetAction(
-              onPressed: () {
-                Navigator.pop(ctx);
-                setState(() => _model = m);
-              },
-              child: Text(m),
-            ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('取消'),
-        ),
-      ),
+    if (_models.isEmpty) {
+      return Text('无可用模型（可手动输入）',
+          style: ShadTheme.of(context).textTheme.small);
+    }
+    return ShadSelect<String>(
+      minWidth: double.infinity,
+      placeholder: Text(_model ?? '选择模型'),
+      onChanged: (v) {
+        if (v != null) setState(() => _model = v);
+      },
+      selectedOptionBuilder: (context, v) => Text(v),
+      options: [
+        for (final m in _models) ShadOption(value: m, child: Text(m)),
+      ],
     );
   }
 

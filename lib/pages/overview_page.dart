@@ -119,41 +119,47 @@ class OverviewPage extends StatelessWidget {
       crossAxisSpacing: 10,
       childAspectRatio: 1.55,
       children: [
-        StatCard(
+        fadeSlideIn(StatCard(
             label: '代理总数',
             value: '${s.total}',
             icon: CupertinoIcons.square_stack,
             subtitle: '已配置'),
-        StatCard(
+            delayMs: 0),
+        fadeSlideIn(StatCard(
             label: '正常',
             value: '${s.ok}',
             color: ShadcnColors.okFor(context),
             icon: CupertinoIcons.checkmark_circle,
             subtitle: '可用'),
-        StatCard(
+            delayMs: 40),
+        fadeSlideIn(StatCard(
             label: '额度耗尽',
             value: '${s.depleted}',
             color: ShadcnColors.warningFor(context),
             icon: CupertinoIcons.hourglass,
             subtitle: '等待重置'),
-        StatCard(
+            delayMs: 80),
+        fadeSlideIn(StatCard(
             label: '故障',
             value: '${s.down}',
             color: ShadcnColors.dangerFor(context),
             icon: CupertinoIcons.exclamationmark_triangle,
             subtitle: '含配置错误'),
-        StatCard(
+            delayMs: 120),
+        fadeSlideIn(StatCard(
             label: '成功请求',
             value: '${s.requestsOk}',
             color: schemeColor(context),
             icon: CupertinoIcons.hand_thumbsup,
             subtitle: '累计'),
-        StatCard(
+            delayMs: 160),
+        fadeSlideIn(StatCard(
             label: '失败请求',
             value: '${s.requestsFail}',
             color: ShadcnColors.dangerFor(context),
             icon: CupertinoIcons.hand_thumbsdown,
             subtitle: '累计'),
+            delayMs: 200),
       ],
     );
   }
@@ -173,7 +179,7 @@ class OverviewPage extends StatelessWidget {
         ),
       );
     }
-    return ShadCard(
+    return fadeSlideIn(ShadCard(
       padding: EdgeInsets.zero,
       child: Column(
         children: [
@@ -218,6 +224,7 @@ class OverviewPage extends StatelessWidget {
           ],
         ],
       ),
+    ),
     );
   }
 

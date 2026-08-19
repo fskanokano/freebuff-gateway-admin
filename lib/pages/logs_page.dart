@@ -303,7 +303,7 @@ class _LogsPageState extends State<LogsPage> {
             ? CupertinoIcons.checkmark_circle_fill
             : CupertinoIcons.xmark_circle_fill)
         : CupertinoIcons.flag_fill;
-    return Container(
+    return fadeSlideIn(Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: ShadCard(
         padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
@@ -372,6 +372,7 @@ class _LogsPageState extends State<LogsPage> {
         ),
         ),
       ),
+    ),
     );
   }
 }

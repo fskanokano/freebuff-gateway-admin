@@ -163,8 +163,10 @@ class _ProxiesPageState extends State<ProxiesPage> {
                         ErrorBanner(widget.state.lastError ?? '连接失败',
                             onRetry: widget.state.refreshNow),
                       _pinnedBanner(context),
-                      ...proxies.map((p) => _proxyCard(
-                          context, p, widget.state.pinStatus?.pinnedProxy)),
+                      ...proxies.map((p) => fadeSlideIn(
+                          _proxyCard(context, p,
+                              widget.state.pinStatus?.pinnedProxy),
+                          delayMs: 0)),
                     ],
                   ),
                 ),

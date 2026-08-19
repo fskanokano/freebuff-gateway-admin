@@ -184,8 +184,24 @@ class StatCard extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Text(value,
-              style: kNumberStyle(26).copyWith(color: fgColor(context))),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.25),
+                  end: Offset.zero,
+                ).animate(anim),
+                child: child,
+              ),
+            ),
+            child: Text(value,
+                key: ValueKey('$label-$value'),
+                style: kNumberStyle(26).copyWith(color: fgColor(context))),
+          ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(subtitle!,
@@ -515,4 +531,23 @@ Future<bool> showShadcnConfirm(
         ),
       ) ??
       false;
+}
+
+
+/// 入场动画: 淡入 + 轻微上移（列表项 stagger 用）。
+Widget fadeSlideIn(Widget child, {int delayMs = 0}) {
+  return child
+      .animate()
+      .fadeIn(
+        duration: 300.ms,
+        curve: Curves.easeOutCubic,
+        delay: delayMs.ms,
+      )
+      .slideY(
+        begin: 0.05,
+        end: 0,
+        duration: 300.ms,
+        curve: Curves.easeOutCubic,
+        delay: delayMs.ms,
+      );
 }

@@ -131,10 +131,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       .copyWith(color: color)),
             ),
             if (value != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: Text(value,
-                    style: ShadTheme.of(context).textTheme.small),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ShadTheme.of(context).textTheme.small,
+                  ),
+                ),
               ),
             ?trailing,
           ],
@@ -435,8 +442,15 @@ class _ParamsDialogState extends State<_ParamsDialog> {
   @override
   Widget build(BuildContext context) {
     Widget field(TextEditingController c, String label) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: ShadInput(controller: c, placeholder: Text(label)),
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: ShadTheme.of(context).textTheme.small),
+              const SizedBox(height: 6),
+              ShadInput(controller: c, placeholder: Text('请输入')),
+            ],
+          ),
         );
     return ShadDialog(
       title: const Text('编辑运行参数'),
@@ -483,39 +497,24 @@ class _ParamsDialogState extends State<_ParamsDialog> {
 
   Widget _modePicker(BuildContext context, String label, String value,
       List<(String, String)> options, ValueChanged<String> onChanged) {
-    return ShadButton.outline(
-      width: double.infinity,
-      onPressed: () {
-        showCupertinoModalPopup(
-          context: context,
-          builder: (ctx) => CupertinoActionSheet(
-            title: Text(label),
-            actions: [
-              for (final (v, l) in options)
-                CupertinoActionSheetAction(
-                  isDefaultAction: v == value,
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    onChanged(v);
-                  },
-                  child: Text(l),
-                ),
-            ],
-            cancelButton: CupertinoActionSheetAction(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('取消'),
-            ),
-          ),
-        );
-      },
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 13, color: fgColor(context))),
-          const SizedBox(width: 8),
-          Text(value, style: ShadTheme.of(context).textTheme.small),
-          const SizedBox(width: 4),
-          const Icon(CupertinoIcons.chevron_down, size: 13),
+          Text(label, style: ShadTheme.of(context).textTheme.small),
+          const SizedBox(height: 6),
+          ShadSelect<String>(
+            minWidth: double.infinity,
+            placeholder: Text(value),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+            selectedOptionBuilder: (context, v) => Text(v),
+            options: [
+              for (final (v, l) in options) ShadOption(value: v, child: Text(l)),
+            ],
+          ),
         ],
       ),
     );
