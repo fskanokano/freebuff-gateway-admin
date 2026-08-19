@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
 
 enum _MainFilter { all, routes, events }
 
@@ -329,7 +330,7 @@ class _LogsPageState extends State<LogsPage> {
     final expanded = _expandedId == item.id;
     final isRoute = item.isRoute;
     final color = isRoute
-        ? (item.ok ? Colors.green : Colors.red)
+        ? (item.ok ? StatusColors.okFor(context) : StatusColors.downFor(context))
         : scheme.primary;
     final icon = isRoute
         ? (item.ok ? Icons.check_circle : Icons.cancel)

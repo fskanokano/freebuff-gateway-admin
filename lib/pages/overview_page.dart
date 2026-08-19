@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 
 class OverviewPage extends StatelessWidget {
@@ -92,20 +93,50 @@ class OverviewPage extends StatelessWidget {
   }
 
   Widget _stats(BuildContext context, GatewayStats s) {
+    final scheme = Theme.of(context).colorScheme;
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: 2.4,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.55,
       children: [
-        StatCard(label: '代理总数', value: '${s.total}', icon: Icons.dns),
-        StatCard(label: '正常', value: '${s.ok}', color: Colors.green, icon: Icons.check_circle),
-        StatCard(label: '额度耗尽', value: '${s.depleted}', color: Colors.orange, icon: Icons.hourglass_bottom),
-        StatCard(label: '故障/配置错误', value: '${s.down}', color: Colors.red, icon: Icons.error),
-        StatCard(label: '累计成功请求', value: '${s.requestsOk}', color: Colors.teal, icon: Icons.thumb_up),
-        StatCard(label: '累计失败请求', value: '${s.requestsFail}', color: Colors.redAccent, icon: Icons.thumb_down),
+        StatCard(
+            label: '代理总数',
+            value: '${s.total}',
+            icon: Icons.dns_outlined,
+            subtitle: '已配置'),
+        StatCard(
+            label: '正常',
+            value: '${s.ok}',
+            color: StatusColors.okFor(context),
+            icon: Icons.check_circle_outline,
+            subtitle: '可用'),
+        StatCard(
+            label: '额度耗尽',
+            value: '${s.depleted}',
+            color: StatusColors.depletedFor(context),
+            icon: Icons.hourglass_bottom,
+            subtitle: '等待重置'),
+        StatCard(
+            label: '故障',
+            value: '${s.down}',
+            color: StatusColors.downFor(context),
+            icon: Icons.error_outline,
+            subtitle: '含配置错误'),
+        StatCard(
+            label: '成功请求',
+            value: '${s.requestsOk}',
+            color: scheme.primary,
+            icon: Icons.thumb_up_outlined,
+            subtitle: '累计'),
+        StatCard(
+            label: '失败请求',
+            value: '${s.requestsFail}',
+            color: StatusColors.downFor(context),
+            icon: Icons.thumb_down_outlined,
+            subtitle: '累计'),
       ],
     );
   }
@@ -135,7 +166,7 @@ class OverviewPage extends StatelessWidget {
               leading: Icon(
                 r.ok ? Icons.check_circle : Icons.cancel,
                 size: 20,
-                color: r.ok ? Colors.green : Colors.red,
+                color: r.ok ? StatusColors.okFor(context) : StatusColors.downFor(context),
               ),
               title: Text('路由 → ${r.name}',
                   maxLines: 1, overflow: TextOverflow.ellipsis),

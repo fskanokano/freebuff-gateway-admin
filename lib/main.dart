@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'pages/connect_page.dart';
 import 'pages/shell_page.dart';
 import 'state/app_state.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,17 +41,8 @@ class _FreeBuffAppState extends State<FreeBuffApp> {
           title: 'FreeBuff 网关管理',
           debugShowCheckedModeBanner: false,
           themeMode: _state.themeMode,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3D5AFE)),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF3D5AFE),
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-          ),
+          theme: buildLightTheme(),
+          darkTheme: buildDarkTheme(),
           onGenerateRoute: (settings) {
             switch (settings.name) {
               case '/shell':

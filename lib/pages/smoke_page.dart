@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 
 class SmokePage extends StatefulWidget {
@@ -189,7 +190,7 @@ class _SmokePageState extends State<SmokePage> {
     final t = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     final ok = r.ok && r.error.isEmpty;
-    final accent = ok ? Colors.green : Colors.red;
+    final accent = ok ? StatusColors.okFor(context) : StatusColors.downFor(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
