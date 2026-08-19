@@ -168,14 +168,11 @@ ThemeData _build(Brightness brightness) {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     ),
-    // 筛选 chip
+    // 筛选 chip: 基础形态; 状态颜色在 FilterChip 处按选中态显式传 (见 logs_page)
     chipTheme: base.chipTheme.copyWith(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-      side: BorderSide(color: scheme.outlineVariant),
-      labelStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      selectedColor: scheme.primaryContainer,
       checkmarkColor: scheme.onPrimaryContainer,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     ),
     // 列表 tile
     listTileTheme: ListTileThemeData(

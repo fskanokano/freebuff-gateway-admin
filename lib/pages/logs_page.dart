@@ -268,6 +268,7 @@ class _LogsPageState extends State<LogsPage> {
   }
 
   Widget _chipRow(List<_ChipData> chips) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: SingleChildScrollView(
@@ -282,6 +283,21 @@ class _LogsPageState extends State<LogsPage> {
                   selected: c.selected,
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  // 显式状态颜色, 保证浅色主题下文字对比度
+                  labelStyle: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight:
+                        c.selected ? FontWeight.w600 : FontWeight.w500,
+                    color: c.selected
+                        ? scheme.onPrimaryContainer
+                        : scheme.onSurface,
+                  ),
+                  backgroundColor: scheme.surfaceContainerLow,
+                  selectedColor: scheme.primaryContainer,
+                  side: BorderSide(
+                    color: c.selected ? scheme.primary : scheme.outline,
+                  ),
+                  checkmarkColor: scheme.onPrimaryContainer,
                   onSelected: (_) => c.onTap(),
                 ),
               ),
