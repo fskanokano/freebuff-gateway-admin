@@ -9,6 +9,7 @@ void main() {
       final j = {
         'name': 'proxy-a',
         'url': 'https://a.example.com',
+        'remark': '主线路',
         'status': 'ok',
         'maint': false,
         'reason': '',
@@ -32,6 +33,7 @@ void main() {
       final p = ProxyInfo.fromJson(j);
       expect(p.name, 'proxy-a');
       expect(p.status, 'ok');
+      expect(p.remark, '主线路');
       expect(p.isOk, isTrue);
       expect(p.score, 12.5);
       expect(p.usagePct, 34.2);
@@ -213,10 +215,17 @@ void main() {
     });
 
     test('ProxyConfig toJson 往返', () {
-      final p = ProxyConfig(name: 'a', url: 'https://a.x', apiKey: 'k');
+      final p = ProxyConfig(name: 'a', url: 'https://a.x', apiKey: 'k', remark: '备用');
       final j = jsonDecode(jsonEncode(p.toJson())) as Map<String, dynamic>;
       expect(j['name'], 'a');
       expect(j['apiKey'], 'k');
+      expect(j['remark'], '备用');
+    });
+
+    test('ProxyConfig 空备注不序列化', () {
+      final p = ProxyConfig(name: 'a', url: 'https://a.x', apiKey: 'k');
+      final j = jsonDecode(jsonEncode(p.toJson())) as Map<String, dynamic>;
+      expect(j.containsKey('remark'), isFalse);
     });
   });
 }

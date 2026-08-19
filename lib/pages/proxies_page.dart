@@ -260,6 +260,27 @@ class _ProxiesPageState extends State<ProxiesPage> {
                 style: t.bodySmall?.copyWith(color: scheme.outline),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
+            // 可选备注
+            if (p.remark != null && p.remark!.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Icon(Icons.notes, size: 12, color: scheme.outline),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      p.remark!,
+                      style: t.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             // 用量条：优先 usage_pct，其次第一个模型配额
             UsageBar(percent: p.usagePct ?? _firstQuotaUsage(p), label: '用量'),
@@ -394,6 +415,7 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
   late final TextEditingController _name;
   late final TextEditingController _url;
   late final TextEditingController _key;
+  late final TextEditingController _remark;
 
   @override
   void initState() {
@@ -401,6 +423,7 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
     _name = TextEditingController(text: widget.existing?.name ?? '');
     _url = TextEditingController(text: widget.existing?.url ?? 'https://');
     _key = TextEditingController(text: '');
+    _remark = TextEditingController(text: widget.existing?.remark ?? '');
   }
 
   @override
@@ -408,6 +431,7 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
     _name.dispose();
     _url.dispose();
     _key.dispose();
+    _remark.dispose();
     super.dispose();
   }
 
@@ -469,6 +493,20 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
                           ? '新增代理必须填写 Key'
                           : null,
                 ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _remark,
+                  autocorrect: false,
+                  maxLength: 200,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: '备注（可选）',
+                    hintText: '例如：主线路 / 备用线路 / 香港节点',
+                    border: OutlineInputBorder(),
+                    counterText: '',
+                    prefixIcon: Icon(Icons.notes),
+                  ),
+                ),
               ],
             ),
           ),
@@ -493,12 +531,15 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
         : _name.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9-]'), '');
     // 新增必须填 key；编辑留空则回填现有 key（后端要求 apiKey 非空）
     final key = _key.text.trim().isEmpty ? widget.currentApiKey : _key.text.trim();
+    // 备注可选: 空串 → null (不提交)
+    final remark = _remark.text.trim();
     Navigator.pop(
       context,
       ProxyConfig(
         name: name,
         url: _url.text.trim().replaceAll(RegExp(r'/+$'), ''),
         apiKey: key,
+        remark: remark.isEmpty ? null : remark,
       ),
     );
   }

@@ -63,6 +63,7 @@ class ProxyInfo {
     required this.url,
     required this.status,
     required this.maint,
+    this.remark,
     this.reason = '',
     this.detail = '',
     this.score,
@@ -90,6 +91,8 @@ class ProxyInfo {
 
   final String name;
   final String url;
+  /// 可选备注（后台保存的代理备注）。
+  final String? remark;
   /// ok / depleted / down / bad_config / maint / unknown
   final String status;
   final bool maint;
@@ -124,6 +127,7 @@ class ProxyInfo {
     return ProxyInfo(
       name: _asStr(j['name']) ?? '?',
       url: _asStr(j['url']) ?? '',
+      remark: _asStr(j['remark']),
       status: _asStr(j['status']) ?? 'unknown',
       maint: j['maint'] == true,
       reason: _asStr(j['reason']) ?? '',
@@ -445,19 +449,27 @@ class GatewayConfig {
 
 /// 代理配置项（config.proxies / 编辑表单用）。
 class ProxyConfig {
-  ProxyConfig({required this.name, required this.url, this.apiKey = ''});
+  ProxyConfig({required this.name, required this.url, this.apiKey = '', this.remark});
 
   final String name;
   final String url;
   final String apiKey;
+  /// 可选备注。
+  final String? remark;
 
   factory ProxyConfig.fromJson(Map<String, dynamic> j) => ProxyConfig(
         name: _asStr(j['name']) ?? '',
         url: _asStr(j['url']) ?? '',
         apiKey: _asStr(j['apiKey']) ?? '',
+        remark: _asStr(j['remark']),
       );
 
-  Map<String, dynamic> toJson() => {'name': name, 'url': url, 'apiKey': apiKey};
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'url': url,
+        'apiKey': apiKey,
+        if (remark != null && remark!.trim().isNotEmpty) 'remark': remark!.trim(),
+      };
 }
 
 // ─────────────────────────── 工具 ───────────────────────────
