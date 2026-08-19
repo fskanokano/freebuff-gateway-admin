@@ -1,9 +1,13 @@
 /// 连接配置页（首次进入 / 登出后）。
+/// 基于 flutter-shadcn-ui 组件。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
+import '../widgets/common.dart';
 
 class ConnectPage extends StatefulWidget {
   const ConnectPage({super.key, required this.state});
@@ -15,7 +19,6 @@ class ConnectPage extends StatefulWidget {
 }
 
 class _ConnectPageState extends State<ConnectPage> {
-  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _url;
   late final TextEditingController _key;
   bool _busy = false;
@@ -36,13 +39,26 @@ class _ConnectPageState extends State<ConnectPage> {
   }
 
   Future<void> _connect() async {
-    if (!_formKey.currentState!.validate()) return;
+    final url = _url.text.trim();
+    final key = _key.text.trim();
+    if (url.isEmpty) {
+      setState(() => _error = '请输入网关地址');
+      return;
+    }
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      setState(() => _error = '需以 http:// 或 https:// 开头');
+      return;
+    }
+    if (key.isEmpty) {
+      setState(() => _error = '请输入密钥');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await widget.state.testAndSave(_url.text, _key.text);
+      await widget.state.testAndSave(url, key);
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/shell');
     } catch (e) {
@@ -54,95 +70,63 @@ class _ConnectPageState extends State<ConnectPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: SafeArea(
+    final primary = schemeColor(context);
+    return CupertinoPageScaffold(
+      child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Icon(Icons.router_outlined, size: 56, color: scheme.primary),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(CupertinoIcons.arrow_2_circlepath,
+                      size: 56, color: primary),
+                  const SizedBox(height: 14),
+                  Text('FreeBuff 网关管理',
+                      textAlign: TextAlign.center,
+                      style: ShadTheme.of(context).textTheme.h1),
+                  const SizedBox(height: 6),
+                  Text('连接你的 freebuff-proxy-gateway 实例',
+                      textAlign: TextAlign.center,
+                      style: ShadTheme.of(context).textTheme.muted),
+                  const SizedBox(height: 30),
+                  ShadInput(
+                    controller: _url,
+                    placeholder: Text('https://gateway.example.workers.dev'),
+                    keyboardType: TextInputType.url,
+                  ),
+                  const SizedBox(height: 12),
+                  ShadInput(
+                    controller: _key,
+                    placeholder: Text('ADMIN_KEY 或 API_KEY'),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '密钥仅保存在本机，用于请求 /admin/api/* 接口',
+                    textAlign: TextAlign.center,
+                    style: ShadTheme.of(context).textTheme.small,
+                  ),
+                  if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text('FreeBuff 网关管理',
+                    Text(_error!,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            )),
-                    const SizedBox(height: 4),
-                    Text('连接你的 freebuff-proxy-gateway 实例',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: scheme.outline)),
-                    const SizedBox(height: 32),
-                    TextFormField(
-                      controller: _url,
-                      keyboardType: TextInputType.url,
-                      autocorrect: false,
-                      decoration: const InputDecoration(
-                        labelText: '网关地址',
-                        hintText: 'https://gateway.example.workers.dev',
-                        prefixIcon: Icon(Icons.link),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) {
-                        final s = v?.trim() ?? '';
-                        if (s.isEmpty) return '请输入网关地址';
-                        if (!s.startsWith('http://') && !s.startsWith('https://')) {
-                          return '需以 http:// 或 https:// 开头';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _key,
-                      autocorrect: false,
-                      obscureText: true,
-                      enableSuggestions: false,
-                      decoration: const InputDecoration(
-                        labelText: '管理员密钥 (ADMIN_KEY 或 API_KEY)',
-                        prefixIcon: Icon(Icons.key),
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) =>
-                          (v?.trim().isEmpty ?? true) ? '请输入密钥' : null,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '密钥仅保存在本机，用于请求 /admin/api/* 接口',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: scheme.outline),
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_error!,
-                          style: TextStyle(color: scheme.error, fontSize: 13)),
-                    ],
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: _busy ? null : _connect,
-                      style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16)),
-                      child: _busy
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2.5))
-                          : const Text('连接并验证'),
-                    ),
+                        style: TextStyle(
+                            fontSize: 13, color: ShadcnColors.danger)),
                   ],
-                ),
+                  const SizedBox(height: 20),
+                  ShadButton(
+                    width: double.infinity,
+                    onPressed: _busy ? null : _connect,
+                    child: _busy
+                        ? const CupertinoActivityIndicator(
+                            color: CupertinoColors.white)
+                        : const Text('连接并验证'),
+                  ),
+                ],
               ),
             ),
           ),

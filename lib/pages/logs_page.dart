@@ -1,15 +1,17 @@
 /// 日志页：路由记录 + 系统事件。
-/// 支持：关键词搜索、类型筛选（路由成功/失败、事件类型细分）、时间范围、
-/// 结果统计、条目展开详情（轮询刷新不打断）、清空。
+/// 基于 flutter-shadcn-ui；支持搜索/类型筛选/时间范围/统计/展开详情（轮询不打断）/清空。
 library;
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:flutter/material.dart' show SelectableText;
 
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/common.dart';
 
 enum _MainFilter { all, routes, events }
 
@@ -56,11 +58,11 @@ class LogsPage extends StatefulWidget {
 class _LogsPageState extends State<LogsPage> {
   _MainFilter _main = _MainFilter.all;
   _RouteFilter _route = _RouteFilter.all;
-  String? _eventType; // null = 全部事件
+  String? _eventType;
   _TimeRange _time = _TimeRange.all;
   final _queryCtrl = TextEditingController();
   String _query = '';
-  String? _expandedId; // 展开详情的条目 id
+  String? _expandedId;
   bool _clearing = false;
 
   static const _eventTypes = [
@@ -81,19 +83,12 @@ class _LogsPageState extends State<LogsPage> {
   Future<void> _clear() async {
     final api = widget.state.api;
     if (api == null) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('清空日志'),
-        content: const Text('将清空路由记录与系统事件（环形缓冲），确定吗？'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('清空'),
-          ),
-        ],
-      ),
+    final ok = await showShadcnConfirm(
+      context,
+      title: '清空日志',
+      message: '将清空路由记录与系统事件（环形缓冲），确定吗？',
+      confirmText: '清空',
+      destructive: true,
     );
     if (ok != true) return;
     setState(() => _clearing = true);
@@ -101,16 +96,12 @@ class _LogsPageState extends State<LogsPage> {
       await api.clearLogs();
       await widget.state.refreshNow();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('清空失败: $e')));
-      }
+      if (mounted) showShadcnToast(context, '清空失败: $e');
     } finally {
       if (mounted) setState(() => _clearing = false);
     }
   }
 
-  /// 过滤 + 排序得到当前展示列表。
   List<_LogItem> _filtered() {
     final ov = widget.state.overview;
     final now = DateTime.now();
@@ -128,7 +119,6 @@ class _LogsPageState extends State<LogsPage> {
         items.add(_LogItem.event(e));
       }
     }
-    // 时间范围
     if (_time != _TimeRange.all) {
       final cutoff = switch (_time) {
         _TimeRange.m5 => now.subtract(const Duration(minutes: 5)),
@@ -138,7 +128,6 @@ class _LogsPageState extends State<LogsPage> {
       };
       if (cutoff != null) items.removeWhere((it) => it.t.isBefore(cutoff));
     }
-    // 搜索
     if (_query.isNotEmpty) {
       final q = _query.toLowerCase();
       items.removeWhere((it) =>
@@ -152,50 +141,49 @@ class _LogsPageState extends State<LogsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('日志'),
-        actions: [
-          IconButton(
-            tooltip: '清空日志',
-            icon: const Icon(Icons.delete_sweep_outlined),
-            onPressed: _clearing ? null : _clear,
-          ),
-        ],
-      ),
-      body: AnimatedBuilder(
+    return CupertinoPageScaffold(
+      child: AnimatedBuilder(
         animation: widget.state,
         builder: (context, _) {
           final ov = widget.state.overview;
           if (ov == null && !widget.state.hasError) {
-            return const Center(child: CircularProgressIndicator());
+            return Column(
+              children: [
+                GlassAppBar(title: const Text('日志')),
+                const Expanded(
+                    child: Center(child: CupertinoActivityIndicator())),
+              ],
+            );
           }
           final items = _filtered();
           return Column(
             children: [
+              GlassAppBar(
+                title: const Text('日志'),
+                actions: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _clearing ? null : _clear,
+                    child: const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: Icon(CupertinoIcons.trash, size: 19),
+                    ),
+                  ),
+                ],
+              ),
               _filters(context),
               _statsBar(context, items),
               Expanded(
-                child: RefreshIndicator(
-                  onRefresh: widget.state.refreshNow,
-                  child: items.isEmpty
-                      ? ListView(
-                          children: const [
-                            SizedBox(height: 100),
-                            Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
-                            SizedBox(height: 12),
-                            Center(child: Text('暂无匹配的日志')),
-                          ],
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                          itemCount: items.length,
-                          itemBuilder: (context, i) => KeyedSubtree(
-                            key: ValueKey(items[i].id),
-                            child: _tile(context, items[i]),
-                          ),
+                child: items.isEmpty
+                    ? const EmptyState('暂无匹配的日志')
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: items.length,
+                        itemBuilder: (context, i) => KeyedSubtree(
+                          key: ValueKey(items[i].id),
+                          child: _tile(context, items[i]),
                         ),
-                ),
+                      ),
               ),
             ],
           );
@@ -208,99 +196,64 @@ class _LogsPageState extends State<LogsPage> {
 
   Widget _filters(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 搜索框
-          TextField(
+          ShadInput(
             controller: _queryCtrl,
+            placeholder: Text('搜索代理名 / 模型 / 类型 / 内容…'),
             onChanged: (v) => setState(() => _query = v.trim()),
-            decoration: InputDecoration(
-              hintText: '搜索代理名 / 模型 / 类型 / 内容…',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              suffixIcon: _query.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        _queryCtrl.clear();
-                        setState(() => _query = '');
-                      },
-                    ),
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
           const SizedBox(height: 10),
-          // 主筛选
-          _chipRow([
-            _ChipData(_MainFilter.all, '全部', _main == _MainFilter.all, () => setState(() => _main = _MainFilter.all)),
-            _ChipData(_MainFilter.routes, '路由记录', _main == _MainFilter.routes, () => setState(() => _main = _MainFilter.routes)),
-            _ChipData(_MainFilter.events, '系统事件', _main == _MainFilter.events, () => setState(() => _main = _MainFilter.events)),
+          _pillRow(context, [
+            ShadcnPill('全部', selected: _main == _MainFilter.all,
+                onTap: () => setState(() => _main = _MainFilter.all)),
+            ShadcnPill('路由记录', selected: _main == _MainFilter.routes,
+                onTap: () => setState(() => _main = _MainFilter.routes)),
+            ShadcnPill('系统事件', selected: _main == _MainFilter.events,
+                onTap: () => setState(() => _main = _MainFilter.events)),
           ]),
-          // 子筛选：路由成功/失败
           if (_main == _MainFilter.routes)
-            _chipRow([
-              _ChipData(_RouteFilter.all, '全部', _route == _RouteFilter.all, () => setState(() => _route = _RouteFilter.all)),
-              _ChipData(_RouteFilter.ok, '✓ 成功', _route == _RouteFilter.ok, () => setState(() => _route = _RouteFilter.ok)),
-              _ChipData(_RouteFilter.fail, '✗ 失败', _route == _RouteFilter.fail, () => setState(() => _route = _RouteFilter.fail)),
+            _pillRow(context, [
+              ShadcnPill('全部', selected: _route == _RouteFilter.all,
+                  onTap: () => setState(() => _route = _RouteFilter.all)),
+              ShadcnPill('✓ 成功', selected: _route == _RouteFilter.ok,
+                  onTap: () => setState(() => _route = _RouteFilter.ok)),
+              ShadcnPill('✗ 失败', selected: _route == _RouteFilter.fail,
+                  onTap: () => setState(() => _route = _RouteFilter.fail)),
             ]),
-          // 子筛选：事件类型
           if (_main == _MainFilter.events)
-            _chipRow([
-              _ChipData('__all__', '全部事件', _eventType == null, () => setState(() => _eventType = null)),
+            _pillRow(context, [
+              ShadcnPill('全部事件', selected: _eventType == null,
+                  onTap: () => setState(() => _eventType = null)),
               for (final (type, label) in _eventTypes)
-                _ChipData(type, label, _eventType == type, () => setState(() => _eventType = type)),
+                ShadcnPill(label, selected: _eventType == type,
+                    onTap: () => setState(() => _eventType = type)),
             ]),
-          // 时间范围
-          _chipRow([
-            _ChipData(_TimeRange.all, '全部时间', _time == _TimeRange.all, () => setState(() => _time = _TimeRange.all)),
-            _ChipData(_TimeRange.m5, '近 5 分钟', _time == _TimeRange.m5, () => setState(() => _time = _TimeRange.m5)),
-            _ChipData(_TimeRange.m30, '近 30 分钟', _time == _TimeRange.m30, () => setState(() => _time = _TimeRange.m30)),
-            _ChipData(_TimeRange.h1, '近 1 小时', _time == _TimeRange.h1, () => setState(() => _time = _TimeRange.h1)),
+          _pillRow(context, [
+            ShadcnPill('全部时间', selected: _time == _TimeRange.all,
+                onTap: () => setState(() => _time = _TimeRange.all)),
+            ShadcnPill('近 5 分钟', selected: _time == _TimeRange.m5,
+                onTap: () => setState(() => _time = _TimeRange.m5)),
+            ShadcnPill('近 30 分钟', selected: _time == _TimeRange.m30,
+                onTap: () => setState(() => _time = _TimeRange.m30)),
+            ShadcnPill('近 1 小时', selected: _time == _TimeRange.h1,
+                onTap: () => setState(() => _time = _TimeRange.h1)),
           ]),
         ],
       ),
     );
   }
 
-  Widget _chipRow(List<_ChipData> chips) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _pillRow(BuildContext context, List<Widget> pills) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            for (final c in chips)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: FilterChip(
-                  label: Text(c.label),
-                  selected: c.selected,
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  // 显式状态颜色, 保证浅色主题下文字对比度
-                  labelStyle: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight:
-                        c.selected ? FontWeight.w600 : FontWeight.w500,
-                    color: c.selected
-                        ? scheme.onPrimaryContainer
-                        : scheme.onSurface,
-                  ),
-                  backgroundColor: scheme.surfaceContainerLow,
-                  selectedColor: scheme.primaryContainer,
-                  side: BorderSide(
-                    color: c.selected ? scheme.primary : scheme.outline,
-                  ),
-                  checkmarkColor: scheme.onPrimaryContainer,
-                  onSelected: (_) => c.onTap(),
-                ),
-              ),
+            for (final p in pills) ...[p, const SizedBox(width: 6)],
           ],
         ),
       ),
@@ -308,8 +261,6 @@ class _LogsPageState extends State<LogsPage> {
   }
 
   Widget _statsBar(BuildContext context, List<_LogItem> items) {
-    final scheme = Theme.of(context).colorScheme;
-    final t = Theme.of(context).textTheme;
     final routes = items.where((i) => i.isRoute).toList();
     final okCount = routes.where((i) => i.ok).length;
     final failCount = routes.length - okCount;
@@ -317,22 +268,23 @@ class _LogsPageState extends State<LogsPage> {
         ? null
         : (routes.fold<int>(0, (a, i) => a + i.ms) / routes.length).round();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      padding: const EdgeInsets.fromLTRB(18, 2, 18, 10),
       child: Row(
         children: [
-          Text('共 ${items.length} 条', style: t.bodySmall),
+          Text('共 ${items.length} 条',
+              style: ShadTheme.of(context).textTheme.small),
           const SizedBox(width: 10),
           Text('路由 $okCount✓/$failCount✗',
-              style: t.bodySmall?.copyWith(color: scheme.outline)),
+              style: ShadTheme.of(context).textTheme.small),
           if (avgMs != null) ...[
             const SizedBox(width: 10),
             Text('平均 ${avgMs}ms',
-                style: t.bodySmall?.copyWith(color: scheme.outline)),
+                style: ShadTheme.of(context).textTheme.small),
           ],
           const Spacer(),
           if (widget.state.lastUpdated != null)
             Text('更新 ${relativeTime(widget.state.lastUpdated)}',
-                style: t.bodySmall?.copyWith(color: scheme.outline)),
+                style: ShadTheme.of(context).textTheme.small),
         ],
       ),
     );
@@ -341,81 +293,87 @@ class _LogsPageState extends State<LogsPage> {
   // ─────────────────────────── 列表项 ───────────────────────────
 
   Widget _tile(BuildContext context, _LogItem item) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     final expanded = _expandedId == item.id;
     final isRoute = item.isRoute;
     final color = isRoute
-        ? (item.ok ? StatusColors.okFor(context) : StatusColors.downFor(context))
-        : scheme.primary;
+        ? (item.ok ? ShadcnColors.ok : ShadcnColors.danger)
+        : schemeColor(context);
     final icon = isRoute
-        ? (item.ok ? Icons.check_circle : Icons.cancel)
-        : Icons.event_note;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => setState(() => _expandedId = expanded ? null : item.id),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        ? (item.ok
+            ? CupertinoIcons.checkmark_circle_fill
+            : CupertinoIcons.xmark_circle_fill)
+        : CupertinoIcons.flag_fill;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ShadCard(
+        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _expandedId = expanded ? null : item.id),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(icon, color: color, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(item.title,
-                        style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+            Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    item.title,
+                    style: ShadTheme.of(context)
+                        .textTheme
+                        .p
+                        .copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  Text(relativeTime(item.t), style: t.bodySmall),
-                  const SizedBox(width: 4),
-                  Icon(expanded ? Icons.expand_less : Icons.expand_more,
-                      size: 18, color: scheme.outline),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(item.subtitle,
-                  style: t.bodySmall?.copyWith(color: scheme.outline),
-                  maxLines: expanded ? null : 2,
-                  overflow: expanded ? null : TextOverflow.ellipsis),
-              if (expanded) ...[
-                const Divider(height: 12),
-                ...item.detailFields.map((f) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 1),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: 84,
-                            child: Text(f.$1,
-                                style: t.bodySmall?.copyWith(color: scheme.outline)),
-                          ),
-                          Expanded(
-                            child: SelectableText(f.$2, style: t.bodySmall),
-                          ),
-                        ],
-                      ),
-                    )),
+                ),
+                Text(relativeTime(item.t),
+                    style: ShadTheme.of(context).textTheme.small),
+                const SizedBox(width: 4),
+                Icon(
+                    expanded
+                        ? CupertinoIcons.chevron_up
+                        : CupertinoIcons.chevron_down,
+                    size: 13,
+                    color: mutedColor(context)),
               ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              item.subtitle,
+              style: ShadTheme.of(context).textTheme.small,
+              maxLines: expanded ? null : 2,
+              overflow: expanded ? null : TextOverflow.ellipsis,
+            ),
+            if (expanded) ...[
+              const SizedBox(height: 8),
+              ShadcnDivider(),
+              const SizedBox(height: 6),
+              ...item.detailFields.map((f) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 1.5),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 82,
+                          child: Text(f.$1,
+                              style: ShadTheme.of(context).textTheme.small),
+                        ),
+                        Expanded(
+                          child: SelectableText(f.$2,
+                              style: ShadTheme.of(context).textTheme.small),
+                        ),
+                      ],
+                    ),
+                  )),
             ],
-          ),
+          ],
+        ),
         ),
       ),
     );
   }
-}
-
-class _ChipData {
-  const _ChipData(this.value, this.label, this.selected, this.onTap);
-
-  final Object value;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
 }
 
 /// 日志行统一结构。
@@ -440,8 +398,6 @@ class _LogItem {
         ];
 
   _LogItem.event(EventEntry e)
-      // 确定性 id: 用 jsonEncode(detail) 而非 hashCode,
-      // 保证轮询刷新重建时展开状态不丢
       : id = 'e|${e.t.millisecondsSinceEpoch}|${e.type}|${jsonEncode(e.detail)}',
         t = e.t,
         isRoute = false,
@@ -460,7 +416,6 @@ class _LogItem {
   final String subtitle;
   final List<(String, String)> detailFields;
 
-  /// 搜索用全文。
   String get detailText =>
       detailFields.map((f) => '${f.$1} ${f.$2}').join(' ');
 
@@ -469,8 +424,6 @@ class _LogItem {
     return '${t.year}-${two(t.month)}-${two(t.day)} '
         '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
   }
-
-  // ── 事件中文语义化渲染 ──
 
   static String _eventTitle(EventEntry e) {
     const names = {
@@ -541,7 +494,6 @@ class _LogItem {
     }
   }
 
-  /// 展开详情的字段：语义化优先，未覆盖的原始字段兜底。
   static List<(String, String)> _eventFields(EventEntry e) {
     final d = e.detail;
     final fields = <(String, String)>[
@@ -588,7 +540,6 @@ class _LogItem {
           fields.add((kv.key, '${kv.value}'));
         }
     }
-    // 未在语义化里覆盖的原始字段兜底
     final covered = <String>{for (final f in fields.skip(1)) f.$1};
     for (final kv in d.entries) {
       if (!covered.contains(kv.key)) fields.add((kv.key, '${kv.value}'));

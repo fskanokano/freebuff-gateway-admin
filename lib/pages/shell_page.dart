@@ -1,9 +1,12 @@
-/// 主框架：底部导航（手机）/ 侧边栏（宽屏自适应）。
+/// 主框架：自绘底部导航（手机）/ 侧边栏（宽屏），无 Material 组件。
 library;
 
-import 'package:flutter/material.dart';
+import 'dart:ui';
+
+import 'package:flutter/cupertino.dart';
 
 import '../state/app_state.dart';
+import '../widgets/common.dart';
 import 'logs_page.dart';
 import 'overview_page.dart';
 import 'proxies_page.dart';
@@ -24,6 +27,14 @@ class _ShellPageState extends State<ShellPage> {
 
   late final List<Widget> _pages;
 
+  static const _tabs = [
+    (CupertinoIcons.chart_bar, CupertinoIcons.chart_bar_fill, '仪表盘'),
+    (CupertinoIcons.square_stack, CupertinoIcons.square_stack_fill, '代理'),
+    (CupertinoIcons.list_bullet, CupertinoIcons.list_bullet_indent, '日志'),
+    (CupertinoIcons.wand_stars, CupertinoIcons.wand_stars, '测试'),
+    (CupertinoIcons.settings, CupertinoIcons.settings_solid, '设置'),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -38,77 +49,140 @@ class _ShellPageState extends State<ShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // 保持各 tab 状态；宽屏（桌面）用 NavigationRail 而非底部栏
-      body: LayoutBuilder(builder: (context, c) {
-        final wide = c.maxWidth >= 840;
-        final content = IndexedStack(index: _index, children: _pages);
-        if (wide) {
-          return Row(
-            children: [
-              NavigationRail(
-                selectedIndex: _index,
-                onDestinationSelected: (i) => setState(() => _index = i),
-                labelType: NavigationRailLabelType.all,
-                destinations: const [
-                  NavigationRailDestination(
-                      icon: Icon(Icons.dashboard_outlined),
-                      selectedIcon: Icon(Icons.dashboard),
-                      label: Text('仪表盘')),
-                  NavigationRailDestination(
-                      icon: Icon(Icons.dns_outlined),
-                      selectedIcon: Icon(Icons.dns),
-                      label: Text('代理')),
-                  NavigationRailDestination(
-                      icon: Icon(Icons.receipt_long_outlined),
-                      selectedIcon: Icon(Icons.receipt_long),
-                      label: Text('日志')),
-                  NavigationRailDestination(
-                      icon: Icon(Icons.science_outlined),
-                      selectedIcon: Icon(Icons.science),
-                      label: Text('测试')),
-                  NavigationRailDestination(
-                      icon: Icon(Icons.settings_outlined),
-                      selectedIcon: Icon(Icons.settings),
-                      label: Text('设置')),
+    final wide = MediaQuery.of(context).size.width >= 840;
+    final content = IndexedStack(index: _index, children: _pages);
+    return CupertinoPageScaffold(
+      child: wide
+          ? Row(
+              children: [
+                _rail(context),
+                Expanded(child: content),
+              ],
+            )
+          : Column(
+              children: [
+                Expanded(child: content),
+                _bottomBar(context),
+              ],
+            ),
+    );
+  }
+
+  /// 自绘底部导航（毛玻璃 + shadcn 风格）。
+  Widget _bottomBar(BuildContext context) {
+    final primary = schemeColor(context);
+    final muted = mutedColor(context);
+    final dark = isDark(context);
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          decoration: BoxDecoration(
+            color: (dark ? const Color(0xFF09090B) : CupertinoColors.white)
+                .withValues(alpha: 0.8),
+            border: Border(
+              top: BorderSide(color: borderColor(context).withValues(alpha: 0.7)),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  for (final (i, t) in _tabs.indexed)
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() => _index = i),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                i == _index ? t.$2 : t.$1,
+                                size: 22,
+                                color: i == _index ? primary : muted,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                t.$3,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: i == _index
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  color: i == _index ? primary : muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
-              const VerticalDivider(width: 1),
-              Expanded(child: content),
-            ],
-          );
-        }
-        return content;
-      }),
-      bottomNavigationBar: LayoutBuilder(builder: (context, c) {
-        if (c.maxWidth >= 840) return const SizedBox.shrink();
-        return NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
-          destinations: const [
-            NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: '仪表盘'),
-            NavigationDestination(
-                icon: Icon(Icons.dns_outlined),
-                selectedIcon: Icon(Icons.dns),
-                label: '代理'),
-            NavigationDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long),
-                label: '日志'),
-            NavigationDestination(
-                icon: Icon(Icons.science_outlined),
-                selectedIcon: Icon(Icons.science),
-                label: '测试'),
-            NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: '设置'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 自绘宽屏侧边栏。
+  Widget _rail(BuildContext context) {
+    final primary = schemeColor(context);
+    final muted = mutedColor(context);
+    final dark = isDark(context);
+    return Container(
+      width: 88,
+      decoration: BoxDecoration(
+        color: (dark ? const Color(0xFF09090B) : CupertinoColors.white)
+            .withValues(alpha: 0.8),
+        border: Border(
+          right: BorderSide(color: borderColor(context).withValues(alpha: 0.7)),
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Icon(CupertinoIcons.arrow_2_circlepath,
+                size: 26, color: primary),
+            const SizedBox(height: 20),
+            for (final (i, t) in _tabs.indexed)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _index = i),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  child: Column(
+                    children: [
+                      Icon(
+                        i == _index ? t.$2 : t.$1,
+                        size: 22,
+                        color: i == _index ? primary : muted,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        t.$3,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: i == _index
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: i == _index ? primary : muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
-        );
-      }),
+        ),
+      ),
     );
   }
 }

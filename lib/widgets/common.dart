@@ -1,29 +1,97 @@
-/// FreeBuff Gateway Admin — 共用小组件（Material 3 + Expressive 风格）。
+/// FreeBuff Gateway Admin — 共用组件（基于 flutter-shadcn-ui）。
+///
+/// shadcn/ui 组件 + 少量自绘（毛玻璃导航/筛选胶囊/分区标题等）。
 library;
 
-import 'package:flutter/material.dart';
+import 'dart:ui';
 
-import '../models/models.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show SelectableText;
+import 'package:shadcn_ui/shadcn_ui.dart';
+
 import '../theme/app_theme.dart';
+import '../models/models.dart';
 
 /// 状态语义色（亮暗自适应）。
 Color statusColor(BuildContext context, String status) {
   switch (status) {
     case 'ok':
-      return StatusColors.okFor(context);
+      return ShadcnColors.okFor(context);
     case 'depleted':
-      return StatusColors.depletedFor(context);
+      return ShadcnColors.warningFor(context);
     case 'down':
     case 'bad_config':
-      return StatusColors.downFor(context);
+      return ShadcnColors.dangerFor(context);
     case 'maint':
-      return StatusColors.maintFor(context);
+      return ShadcnColors.neutral;
     default:
-      return Theme.of(context).colorScheme.outline;
+      return ShadTheme.of(context).colorScheme.mutedForeground;
   }
 }
 
-/// 状态彩色徽标（圆点 + 文字，低饱和底）。
+/// 取色便捷函数。
+Color schemeColor(BuildContext context) => ShadTheme.of(context).colorScheme.primary;
+Color fgColor(BuildContext context) => ShadTheme.of(context).colorScheme.foreground;
+Color mutedColor(BuildContext context) => ShadTheme.of(context).colorScheme.mutedForeground;
+Color borderColor(BuildContext context) => ShadTheme.of(context).colorScheme.border;
+Color cardColor(BuildContext context) => ShadTheme.of(context).colorScheme.card;
+Color pageBg(BuildContext context) => ShadTheme.of(context).colorScheme.background;
+bool isDark(BuildContext context) => ShadTheme.of(context).brightness == Brightness.dark;
+
+/// 毛玻璃导航栏（自绘：SafeArea + 背景模糊 + 半透明）。
+class GlassAppBar extends StatelessWidget {
+  const GlassAppBar({super.key, required this.title, this.actions});
+
+  final Widget title;
+  final List<Widget>? actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = isDark(context);
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          decoration: BoxDecoration(
+            color: (dark ? const Color(0xFF09090B) : CupertinoColors.white)
+                .withValues(alpha: 0.72),
+            border: Border(
+              bottom: BorderSide(color: borderColor(context).withValues(alpha: 0.7)),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: 52,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: DefaultTextStyle(
+                          style: ShadTheme.of(context)
+                              .textTheme
+                              .h3
+                              .copyWith(color: fgColor(context)),
+                          child: title,
+                        ),
+                      ),
+                    ),
+                    ...?actions,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 状态徽标（shadcn Badge + 语义色）。
 class StatusBadge extends StatelessWidget {
   const StatusBadge(this.status, {super.key, this.dense = false});
 
@@ -34,10 +102,11 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = statusColor(context, status);
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: dense ? 8 : 10, vertical: dense ? 3 : 5),
+      padding: EdgeInsets.symmetric(
+          horizontal: dense ? 8 : 10, vertical: dense ? 3 : 5),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        color: c.withValues(alpha: isDark(context) ? 0.22 : 0.10),
+        borderRadius: BorderRadius.circular(kBadgeRadius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -63,7 +132,7 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
-/// 仪表盘统计卡（Expressive 风格：渐变强调底 + 图标徽章 + 大数字）。
+/// 统计卡（shadcn Card + 圆点 + 大数字）。
 class StatCard extends StatelessWidget {
   const StatCard({
     super.key,
@@ -82,50 +151,30 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final c = color ?? scheme.primary;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final c = color ?? schemeColor(context);
     return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kCardRadius),
-        // 渐变强调底（Expressive: 丰富色彩; 深色下加深）
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: dark
-              ? [c.withValues(alpha: 0.22), c.withValues(alpha: 0.08)]
-              : [c.withValues(alpha: 0.12), c.withValues(alpha: 0.04)],
-        ),
-        border: Border.all(
-          color: c.withValues(alpha: dark ? 0.25 : 0.12),
-        ),
-      ),
       padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardColor(context),
+        borderRadius: BorderRadius.circular(kCardRadius),
+        border: Border.all(color: borderColor(context)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              // 图标徽章: 圆形浅色底
               Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: c.withValues(alpha: dark ? 0.28 : 0.14),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon ?? Icons.info_outline,
-                  size: 16,
-                  color: c,
-                ),
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(color: c, shape: BoxShape.circle),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                  style: ShadTheme.of(context).textTheme.small.copyWith(
+                        color: mutedColor(context),
                         fontWeight: FontWeight.w500,
                       ),
                   maxLines: 1,
@@ -135,20 +184,14 @@ class StatCard extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          // 大数字: Expressive 排版引导（大而粗、负字距）
-          Text(
-            value,
-            style: kNumberStyle(28).copyWith(color: scheme.onSurface),
-            maxLines: 1,
-          ),
+          Text(value,
+              style: kNumberStyle(26).copyWith(color: fgColor(context))),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
-            Text(
-              subtitle!,
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(subtitle!,
+                style: ShadTheme.of(context).textTheme.small,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ],
         ],
       ),
@@ -156,7 +199,7 @@ class StatCard extends StatelessWidget {
   }
 }
 
-/// 用量进度条（渐变填充 + 可选百分比）。
+/// 用量进度条（shadcn Progress）。
 class UsageBar extends StatelessWidget {
   const UsageBar({
     super.key,
@@ -166,7 +209,6 @@ class UsageBar extends StatelessWidget {
     this.showPercent = false,
   });
 
-  /// 0-100+，超过 100 按 100 显示但颜色变红。
   final double? percent;
   final String? label;
   final double height;
@@ -175,13 +217,12 @@ class UsageBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = percent;
-    final scheme = Theme.of(context).colorScheme;
     final clamped = p == null ? 0.0 : p.clamp(0, 100).toDouble();
     final over = (p ?? 0) > 100;
     final danger = (p ?? 0) > 80;
     final color = over || danger
-        ? StatusColors.downFor(context)
-        : (danger ? StatusColors.depletedFor(context) : scheme.primary);
+        ? ShadcnColors.dangerFor(context)
+        : (danger ? ShadcnColors.warningFor(context) : schemeColor(context));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,20 +235,15 @@ class UsageBar extends StatelessWidget {
                   Expanded(
                     child: Text(
                       label!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: color, fontWeight: FontWeight.w600),
+                      style: ShadTheme.of(context).textTheme.small.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                 if (showPercent && p != null)
-                  Text(
-                    '${p.toStringAsFixed(0)}%',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
+                  Text('${p.toStringAsFixed(0)}%',
+                      style: ShadTheme.of(context).textTheme.small),
               ],
             ),
           ),
@@ -217,14 +253,14 @@ class UsageBar extends StatelessWidget {
             height: height,
             child: Stack(
               children: [
-                Container(color: scheme.surfaceContainerHighest),
+                Container(color: borderColor(context)),
                 FractionallySizedBox(
                   widthFactor: clamped / 100,
                   child: Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
                       gradient: LinearGradient(
-                        colors: [color.withValues(alpha: 0.75), color],
+                        colors: [color.withValues(alpha: 0.7), color],
                       ),
                     ),
                   ),
@@ -238,7 +274,62 @@ class UsageBar extends StatelessWidget {
   }
 }
 
-/// 分区卡片标题。
+/// 筛选胶囊（自绘）。
+class ShadcnPill extends StatelessWidget {
+  const ShadcnPill(this.label, {super.key, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = schemeColor(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? primary.withValues(alpha: isDark(context) ? 0.25 : 0.12)
+              : (isDark(context)
+                  ? const Color(0xFF1C1C20)
+                  : const Color(0xFFF4F4F5)),
+          borderRadius: BorderRadius.circular(kBadgeRadius),
+          border: Border.all(
+            color: selected ? primary : borderColor(context),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            color: selected ? primary : fgColor(context),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 自绘分割线。
+class ShadcnDivider extends StatelessWidget {
+  const ShadcnDivider({super.key, this.indent = 0});
+
+  final double indent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      margin: EdgeInsets.only(left: indent),
+      color: borderColor(context).withValues(alpha: 0.6),
+    );
+  }
+}
+
+/// 分区标题。
 class SectionTitle extends StatelessWidget {
   const SectionTitle(this.text, {super.key, this.trailing});
 
@@ -248,11 +339,17 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+      padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
       child: Row(
         children: [
           Expanded(
-            child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+            child: Text(
+              text,
+              style: ShadTheme.of(context).textTheme.h4.copyWith(
+                    color: fgColor(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
           ?trailing,
         ],
@@ -261,7 +358,7 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-/// 通用错误提示条。
+/// 错误提示条。
 class ErrorBanner extends StatelessWidget {
   const ErrorBanner(this.message, {super.key, this.onRetry});
 
@@ -270,31 +367,41 @@ class ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final danger = ShadcnColors.danger;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: scheme.errorContainer.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(12),
+        color: danger.withValues(alpha: isDark(context) ? 0.14 : 0.07),
+        borderRadius: BorderRadius.circular(kCardRadius),
+        border: Border.all(color: danger.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, size: 18, color: scheme.error),
+          Icon(CupertinoIcons.exclamationmark_triangle_fill,
+              size: 16, color: danger),
           const SizedBox(width: 8),
           Expanded(
             child: Text(message,
-                style: TextStyle(color: scheme.onErrorContainer, fontSize: 13)),
+                style: TextStyle(fontSize: 13, color: danger)),
           ),
           if (onRetry != null)
-            TextButton(onPressed: onRetry, child: const Text('重试')),
+            GestureDetector(
+              onTap: onRetry,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Text('重试',
+                    style: TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: danger)),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-/// 连接信息行（key: value，可复制）。
+/// 信息行（key: value）。
 class InfoRow extends StatelessWidget {
   const InfoRow({super.key, required this.label, required this.value, this.selectable = true});
 
@@ -305,25 +412,107 @@ class InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 110,
-            child: Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: Theme.of(context).colorScheme.outline)),
+            width: 100,
+            child: Text(label, style: ShadTheme.of(context).textTheme.small),
           ),
           Expanded(
             child: selectable
-                ? SelectableText(value, style: Theme.of(context).textTheme.bodyMedium)
-                : Text(value, style: Theme.of(context).textTheme.bodyMedium),
+                ? SelectableText(value,
+                    style: ShadTheme.of(context).textTheme.p)
+                : Text(value, style: ShadTheme.of(context).textTheme.p),
           ),
         ],
       ),
     );
   }
+}
+
+/// 空状态。
+class EmptyState extends StatelessWidget {
+  const EmptyState(this.message, {super.key, this.icon = CupertinoIcons.tray});
+
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 80),
+      child: Column(
+        children: [
+          Icon(icon, size: 44, color: mutedColor(context).withValues(alpha: 0.6)),
+          const SizedBox(height: 10),
+          Text(message,
+              style: TextStyle(fontSize: 13.5, color: mutedColor(context))),
+        ],
+      ),
+    );
+  }
+}
+
+/// shadcn toast（经 ShadToaster）。
+void showShadcnToast(BuildContext context, String message) {
+  final overlay = Overlay.of(context);
+  late OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => Positioned(
+      bottom: 96,
+      left: 40,
+      right: 40,
+      child: IgnorePointer(
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: CupertinoColors.black.withValues(alpha: 0.78),
+              borderRadius: BorderRadius.circular(kControlRadius),
+            ),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: CupertinoColors.white, fontSize: 13),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  overlay.insert(entry);
+  Future.delayed(const Duration(milliseconds: 2200), () {
+    entry.remove();
+  });
+}
+
+/// 确认对话框（shadcn Dialog）。
+Future<bool> showShadcnConfirm(
+  BuildContext context, {
+  required String title,
+  required String message,
+  String confirmText = '确定',
+  bool destructive = false,
+}) async {
+  return await showCupertinoDialog<bool>(
+        context: context,
+        builder: (ctx) => CupertinoAlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消'),
+            ),
+            CupertinoDialogAction(
+              isDestructiveAction: destructive,
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(confirmText),
+            ),
+          ],
+        ),
+      ) ??
+      false;
 }

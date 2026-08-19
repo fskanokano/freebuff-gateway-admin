@@ -4,6 +4,7 @@ import 'package:gateway_admin/main.dart';
 import 'package:gateway_admin/pages/connect_page.dart';
 import 'package:gateway_admin/state/app_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 void main() {
   setUp(() {
@@ -11,25 +12,29 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  Widget wrap(Widget child) {
+    return ShadApp(
+      theme: ShadThemeData(
+        brightness: Brightness.light,
+        colorScheme: const ShadZincColorScheme.light(),
+      ),
+      home: child,
+    );
+  }
+
   testWidgets('连接页渲染表单与按钮', (tester) async {
     final state = AppState();
-    // 等待异步初始化（读取 SharedPreferences）
-    await tester.pumpWidget(MaterialApp(
-      home: ConnectPage(state: state),
-    ));
+    await tester.pumpWidget(wrap(ConnectPage(state: state)));
     await tester.pumpAndSettle();
 
     expect(find.text('FreeBuff 网关管理'), findsOneWidget);
-    expect(find.text('网关地址'), findsOneWidget);
-    expect(find.text('管理员密钥 (ADMIN_KEY 或 API_KEY)'), findsOneWidget);
+    expect(find.byType(ShadInput), findsNWidgets(2));
     expect(find.text('连接并验证'), findsOneWidget);
   });
 
   testWidgets('空表单校验拦截提交', (tester) async {
     final state = AppState();
-    await tester.pumpWidget(MaterialApp(
-      home: ConnectPage(state: state),
-    ));
+    await tester.pumpWidget(wrap(ConnectPage(state: state)));
     await tester.pumpAndSettle();
 
     // 不输入任何内容直接点连接（URL 有默认 https:// 占位，密钥为空）
@@ -41,14 +46,12 @@ void main() {
 
   testWidgets('非法地址校验', (tester) async {
     final state = AppState();
-    await tester.pumpWidget(MaterialApp(
-      home: ConnectPage(state: state),
-    ));
+    await tester.pumpWidget(wrap(ConnectPage(state: state)));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-        find.byType(TextFormField).first, 'gw.example.com');
-    await tester.enterText(find.byType(TextFormField).at(1), 'key');
+    final fields = find.byType(ShadInput);
+    await tester.enterText(fields.first, 'gw.example.com');
+    await tester.enterText(fields.at(1), 'key');
     await tester.tap(find.text('连接并验证'));
     await tester.pumpAndSettle();
 

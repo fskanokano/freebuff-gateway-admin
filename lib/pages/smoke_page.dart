@@ -1,7 +1,9 @@
-/// 测试页：smoke 全链路测试（真实请求走完整路由链路）。
+/// 测试页：smoke 全链路测试。
+/// 基于 flutter-shadcn-ui 组件。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../models/models.dart';
 import '../state/app_state.dart';
@@ -53,8 +55,7 @@ class _SmokePageState extends State<SmokePage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('模型列表拉取失败（可手动输入模型名）: $e')));
+        showShadcnToast(context, '模型列表拉取失败（可手动输入模型名）: $e');
       }
     } finally {
       if (mounted) setState(() => _loadingModels = false);
@@ -69,7 +70,9 @@ class _SmokePageState extends State<SmokePage> {
       _result = null;
     });
     try {
-      final model = _models.contains(_model) ? _model : (_customModel.text.trim().isEmpty ? null : _customModel.text.trim());
+      final model = _models.contains(_model)
+          ? _model
+          : (_customModel.text.trim().isEmpty ? null : _customModel.text.trim());
       final r = await api.smoke(
         model: model,
         prompt: _prompt.text.trim().isEmpty ? 'ping' : _prompt.text.trim(),
@@ -94,144 +97,186 @@ class _SmokePageState extends State<SmokePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('测试')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+    return CupertinoPageScaffold(
+      child: Column(
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          const GlassAppBar(title: Text('测试')),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _loadingModels
-                            ? const LinearProgressIndicator()
-                            : DropdownButtonFormField<String>(
-                                initialValue: _model,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                    labelText: '模型',
-                                    border: OutlineInputBorder(),
-                                    isDense: true),
-                                items: _models
-                                    .map((m) => DropdownMenuItem(value: m, child: Text(m, overflow: TextOverflow.ellipsis)))
-                                    .toList(),
-                                onChanged: (v) => setState(() => _model = v),
+                  // 请求配置
+                  ShadCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _modelPicker(context),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _loadModels,
+                              child: const Padding(
+                                padding: EdgeInsets.all(8),
+                                child:
+                                    Icon(CupertinoIcons.refresh, size: 17),
                               ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        tooltip: '刷新模型列表',
-                        icon: const Icon(Icons.refresh),
-                        onPressed: _loadModels,
-                      ),
-                    ],
-                  ),
-                  if (!_models.contains(_model))
-                    const SizedBox(height: 8),
-                  TextField(
-                    controller: _customModel,
-                    decoration: const InputDecoration(
-                      labelText: '或手动输入模型名',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                      hintText: 'freebuff-1',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _prompt,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: '测试提示词',
-                      border: OutlineInputBorder(),
-                      hintText: 'ping',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: _running ? null : _run,
-                          icon: _running
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.science),
-                          label: Text(_running ? '请求中…' : '发送测试请求'),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        ShadInput(
+                          controller: _customModel,
+                          placeholder: Text('或手动输入模型名（如 freebuff-1）'),
+                        ),
+                        const SizedBox(height: 12),
+                        ShadInput(
+                          controller: _prompt,
+                          placeholder: Text('测试提示词'),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 14),
+                        ShadButton(
+                          width: double.infinity,
+                          onPressed: _running ? null : _run,
+                          child: _running
+                              ? const CupertinoActivityIndicator(
+                                  color: CupertinoColors.white)
+                              : const Text('发送测试请求'),
+                        ),
+                      ],
+                    ),
                   ),
+                  if (_result != null) ...[
+                    const SectionTitle('本次结果'),
+                    _resultCard(context, _result!),
+                  ],
+                  if (_history.isNotEmpty) ...[
+                    const SectionTitle('历史记录'),
+                    ..._history
+                        .take(10)
+                        .map((r) => _resultCard(context, r, compact: true)),
+                  ],
                 ],
               ),
             ),
           ),
-          if (_result != null) ...[
-            const SectionTitle('本次结果'),
-            _resultCard(context, _result!),
-          ],
-          if (_history.isNotEmpty) ...[
-            const SectionTitle('历史记录'),
-            ..._history.take(10).map((r) => _resultCard(context, r, compact: true)),
-          ],
         ],
       ),
     );
   }
 
-  Widget _resultCard(BuildContext context, SmokeResult r, {bool compact = false}) {
-    final t = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
+  Widget _modelPicker(BuildContext context) {
+    if (_loadingModels) {
+      return const Row(
+        children: [
+          CupertinoActivityIndicator(radius: 8),
+          SizedBox(width: 10),
+          Text('加载模型…', style: TextStyle(fontSize: 13)),
+        ],
+      );
+    }
+    return ShadButton.outline(
+      onPressed: _models.isEmpty ? null : () => _showModelSheet(context),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              _models.isEmpty
+                  ? '无可用模型（可手动输入）'
+                  : (_model ?? '选择模型'),
+              style: TextStyle(
+                  fontSize: 13, color: fgColor(context)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(CupertinoIcons.chevron_down, size: 13),
+        ],
+      ),
+    );
+  }
+
+  void _showModelSheet(BuildContext context) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('选择模型'),
+        actions: [
+          for (final m in _models)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() => _model = m);
+              },
+              child: Text(m),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+  }
+
+  Widget _resultCard(BuildContext context, SmokeResult r,
+      {bool compact = false}) {
     final ok = r.ok && r.error.isEmpty;
-    final accent = ok ? StatusColors.okFor(context) : StatusColors.downFor(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(ok ? Icons.check_circle : Icons.error, color: accent, size: 20),
-                const SizedBox(width: 6),
-                Text(
+    final accent = ok ? ShadcnColors.ok : ShadcnColors.danger;
+    return ShadCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                  ok
+                      ? CupertinoIcons.checkmark_circle_fill
+                      : CupertinoIcons.xmark_circle_fill,
+                  color: accent,
+                  size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
                   'HTTP ${r.status} ${ok ? '成功' : '失败'}'
                   '${r.proxy != null ? ' · 路由到 ${r.proxy}' : ''}'
                   ' · 尝试 ${r.attempts} 次 · ${r.ms}ms',
-                  style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: ShadTheme.of(context)
+                      .textTheme
+                      .p
+                      .copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
-            if (!compact) ...[
-              if (r.content.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                SelectableText(r.content,
-                    style: t.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-              ],
-              if (r.error.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                SelectableText(r.error,
-                    style: t.bodySmall?.copyWith(color: scheme.error)),
-              ],
-            ] else if (r.content.isNotEmpty || r.error.isNotEmpty)
-              const SizedBox(height: 6),
-            if (compact)
-              Text(
-                (r.content.isNotEmpty ? r.content : r.error).replaceAll('\n', ' '),
-                style: t.bodySmall?.copyWith(color: scheme.outline),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
+            ],
+          ),
+          if (r.content.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(r.content,
+                style: ShadTheme.of(context).textTheme.small,
+                maxLines: compact ? 1 : null,
+                overflow: compact ? TextOverflow.ellipsis : null),
           ],
-        ),
+          if (r.error.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(r.error,
+                style: ShadTheme.of(context)
+                    .textTheme
+                    .small
+                    .copyWith(color: ShadcnColors.danger),
+                maxLines: compact ? 1 : null,
+                overflow: compact ? TextOverflow.ellipsis : null),
+          ],
+        ],
       ),
     );
   }
