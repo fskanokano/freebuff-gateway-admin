@@ -202,13 +202,25 @@ class EventEntry {
   final Map<String, dynamic> detail;
 
   factory EventEntry.fromJson(Map<String, dynamic> j) {
-    final d = (j['detail'] is Map)
-        ? (j['detail'] as Map).cast<String, dynamic>()
-        : <String, dynamic>{};
+    // 网关事件格式: pushEvent 把 detail 字段展开在顶层 ({t, type, ...detail})
+    // 而非嵌套对象 —— 误找 j['detail'] 会导致所有事件字段丢失
+    final detail = <String, dynamic>{};
+    for (final e in j.entries) {
+      final k = e.key;
+      if (k == 't' || k == 'time' || k == 'type') continue;
+      if (e.value != null) detail[k] = e.value;
+    }
+    // 兼容嵌套 detail 对象格式
+    if (j['detail'] is Map) {
+      final nested = (j['detail'] as Map).cast<String, dynamic>();
+      nested.forEach((k, v) {
+        if (v != null) detail[k] = v;
+      });
+    }
     return EventEntry(
       t: _asDt(j['t']) ?? _asDt(j['time']) ?? DateTime.now(),
       type: _asStr(j['type']) ?? 'unknown',
-      detail: d,
+      detail: detail,
     );
   }
 }

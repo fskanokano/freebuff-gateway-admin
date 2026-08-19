@@ -1,7 +1,9 @@
 /// 日志页：路由记录 + 系统事件。
 /// 支持：关键词搜索、类型筛选（路由成功/失败、事件类型细分）、时间范围、
-/// 结果统计、条目展开详情、清空。
+/// 结果统计、条目展开详情（轮询刷新不打断）、清空。
 library;
+
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -13,6 +15,33 @@ enum _MainFilter { all, routes, events }
 enum _RouteFilter { all, ok, fail }
 
 enum _TimeRange { all, m5, m30, h1 }
+
+/// 错误码/原因 → 中文。
+const _codeZh = {
+  'rate_limited': '限流',
+  'banned': '账号封禁',
+  'country_blocked': '区域限制',
+  'out_of_credits': '余额不足',
+  'waiting_room': '排队中',
+  'auth_rejected': '上游鉴权拒绝',
+  'invalid_api_key': '密钥无效',
+  'timeout': '超时',
+  'connection_error': '连接失败',
+  'dns_error': 'DNS 解析失败',
+  'probe_failed': '探测失败',
+  'quota_exhausted': '额度耗尽',
+  'locked': '锁定',
+  'unknown': '未知',
+};
+
+/// 后台操作类型 → 中文。
+const _actionZh = {
+  'save_config': '保存配置',
+  'probe': '立即探测',
+  'clear_pin': '解除常驻',
+  'reset_config': '恢复环境变量',
+  'clear_logs': '清空日志',
+};
 
 class LogsPage extends StatefulWidget {
   const LogsPage({super.key, required this.state});
@@ -160,7 +189,10 @@ class _LogsPageState extends State<LogsPage> {
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                           itemCount: items.length,
-                          itemBuilder: (context, i) => _tile(context, items[i]),
+                          itemBuilder: (context, i) => KeyedSubtree(
+                            key: ValueKey(items[i].id),
+                            child: _tile(context, items[i]),
+                          ),
                         ),
                 ),
               ),
@@ -372,7 +404,7 @@ class _ChipData {
 /// 日志行统一结构。
 class _LogItem {
   _LogItem.route(RouteEntry r)
-      : id = 'r-${r.t.millisecondsSinceEpoch}-${r.name}-${r.status}',
+      : id = 'r|${r.t.millisecondsSinceEpoch}|${r.name}|${r.status}|${r.ms}',
         t = r.t,
         isRoute = true,
         ok = r.ok,
@@ -391,19 +423,16 @@ class _LogItem {
         ];
 
   _LogItem.event(EventEntry e)
-      : id = 'e-${e.t.millisecondsSinceEpoch}-${e.type}-${e.detail.hashCode}',
+      // 确定性 id: 用 jsonEncode(detail) 而非 hashCode,
+      // 保证轮询刷新重建时展开状态不丢
+      : id = 'e|${e.t.millisecondsSinceEpoch}|${e.type}|${jsonEncode(e.detail)}',
         t = e.t,
         isRoute = false,
         ok = true,
         ms = 0,
         title = _eventTitle(e),
-        subtitle = _eventDetail(e),
-        detailFields = [
-          ('类型', _eventTitle(e)),
-          ('原始类型', e.type),
-          for (final kv in e.detail.entries) (kv.key, '${kv.value}'),
-          ('时间', _fullTime(e.t)),
-        ];
+        subtitle = _eventSubtitle(e),
+        detailFields = _eventFields(e);
 
   final String id;
   final DateTime t;
@@ -424,6 +453,8 @@ class _LogItem {
         '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
   }
 
+  // ── 事件中文语义化渲染 ──
+
   static String _eventTitle(EventEntry e) {
     const names = {
       'status_change': '状态变化',
@@ -436,38 +467,116 @@ class _LogItem {
     return names[e.type] ?? e.type;
   }
 
-  static String _eventDetail(EventEntry e) {
-    final d = e.detail;
-    String pair(String k) {
-      final v = d[k];
-      return v == null ? '' : '$k=$v';
-    }
+  static String _zh(String? code) => _codeZh[code] ?? (code ?? '');
 
+  static String _eventSubtitle(EventEntry e) {
+    final d = e.detail;
     switch (e.type) {
       case 'status_change':
-        return [pair('name'), pair('from'), pair('to'), pair('reason')]
-            .where((s) => s.isNotEmpty)
-            .join(' · ');
+        final name = d['name'] ?? '?';
+        final from = statusLabel('${d['from'] ?? ''}');
+        final to = statusLabel('${d['to'] ?? ''}');
+        final reason = d['reason'];
+        return '$name: $from → $to'
+            '${reason != null && reason.toString().isNotEmpty ? ' · 原因: ${_zh(reason.toString())}' : ''}';
       case 'failover':
-        return [pair('name'), pair('from'), pair('to'), pair('code'), pair('status')]
-            .where((s) => s.isNotEmpty)
-            .join(' · ');
+        final name = d['name'] ?? '?';
+        final from = statusLabel('${d['from'] ?? ''}');
+        final to = statusLabel('${d['to'] ?? ''}');
+        final code = d['code'];
+        final status = d['status'];
+        return '$name: $from → $to'
+            '${code != null && code.toString().isNotEmpty ? ' · ${_zh(code.toString())}' : ''}'
+            '${status != null ? ' (HTTP $status)' : ''}';
       case 'probe_failed':
-        return [pair('name'), pair('status'), pair('err')]
-            .where((s) => s.isNotEmpty)
-            .join(' · ');
+        final name = d['name'] ?? '?';
+        final err = d['err'];
+        final errText = err == null ? '' : err.toString().replaceAll('\n', ' ');
+        return '$name 探测失败'
+            '${errText.isNotEmpty ? ' · ${errText.length > 90 ? '${errText.substring(0, 90)}…' : errText}' : ''}';
       case 'admin_action':
-        return [pair('action'), pair('name'), pair('proxies'), pair('settings'), pair('result'), pair('key')]
-            .where((s) => s.isNotEmpty)
-            .join(' · ');
+        final action = _actionZh['${d['action'] ?? ''}'] ?? '${d['action'] ?? '操作'}';
+        final extras = <String>[
+          if (d['name'] != null) '代理 ${d['name']}',
+          if (d['proxies'] != null) '代理 ${d['proxies']} 个',
+          if (d['settings'] != null) '参数 ${d['settings']}',
+          if (d['key'] != null) 'key ${d['key']}',
+          if (d['result'] != null) '结果 ${d['result']}',
+        ];
+        return action + (extras.isEmpty ? '' : ' · ${extras.join(' · ')}');
       case 'maintenance':
-        return [pair('name'), pair('on')].where((s) => s.isNotEmpty).join(' · ');
+        final name = d['name'] ?? '?';
+        final on = d['on'] == true;
+        return '$name 维护${on ? '已开启' : '已关闭'}';
       case 'smoke':
-        return [pair('model'), pair('status'), pair('proxy'), pair('ms'), pair('ok')]
-            .where((s) => s.isNotEmpty)
-            .join(' · ');
+        final model = d['model'] ?? '?';
+        final proxy = d['proxy'];
+        final status = d['status'];
+        final ms = d['ms'];
+        final ok = d['ok'] == true;
+        return '$model'
+            '${proxy != null ? ' → $proxy' : ''}'
+            ' · HTTP $status'
+            '${ms != null ? ' · ${ms}ms' : ''}'
+            ' · ${ok ? '成功' : '失败'}';
       default:
-        return d.entries.map((e2) => '${e2.key}=${e2.value}').join(' · ');
+        return e.detail.entries.map((kv) => '${kv.key}=${kv.value}').join(' · ');
     }
+  }
+
+  /// 展开详情的字段：语义化优先，未覆盖的原始字段兜底。
+  static List<(String, String)> _eventFields(EventEntry e) {
+    final d = e.detail;
+    final fields = <(String, String)>[
+      ('类型', _eventTitle(e)),
+    ];
+    switch (e.type) {
+      case 'status_change':
+        fields.add(('代理', '${d['name'] ?? '?'}'));
+        fields.add(('变化',
+            '${statusLabel('${d['from'] ?? ''}')} → ${statusLabel('${d['to'] ?? ''}')}'));
+        if (d['reason'] != null) {
+          fields.add(('原因', '${d['reason']} (${_zh(d['reason'].toString())})'));
+        }
+        if (d['detail'] != null) fields.add(('详情', '${d['detail']}'));
+      case 'failover':
+        fields.add(('代理', '${d['name'] ?? '?'}'));
+        fields.add(('变化',
+            '${statusLabel('${d['from'] ?? ''}')} → ${statusLabel('${d['to'] ?? ''}')}'));
+        if (d['code'] != null) {
+          fields.add(('错误码', '${d['code']} (${_zh(d['code'].toString())})'));
+        }
+        if (d['status'] != null) fields.add(('HTTP', '${d['status']}'));
+      case 'probe_failed':
+        fields.add(('代理', '${d['name'] ?? '?'}'));
+        if (d['status'] != null) fields.add(('状态', '${d['status']}'));
+        if (d['err'] != null) fields.add(('错误', '${d['err']}'));
+      case 'admin_action':
+        fields.add(
+            ('操作', '${_actionZh['${d['action'] ?? ''}'] ?? d['action'] ?? ''}'));
+        for (final k in ['name', 'proxies', 'settings', 'result', 'key']) {
+          if (d[k] != null) fields.add((k, '${d[k]}'));
+        }
+      case 'maintenance':
+        fields.add(('代理', '${d['name'] ?? '?'}'));
+        fields.add(('状态', d['on'] == true ? '已开启' : '已关闭'));
+      case 'smoke':
+        if (d['model'] != null) fields.add(('模型', '${d['model']}'));
+        if (d['proxy'] != null) fields.add(('路由到', '${d['proxy']}'));
+        if (d['status'] != null) fields.add(('HTTP', '${d['status']}'));
+        if (d['ms'] != null) fields.add(('耗时', '${d['ms']}ms'));
+        if (d['ok'] != null) fields.add(('结果', d['ok'] == true ? '成功' : '失败'));
+      default:
+        for (final kv in d.entries) {
+          fields.add((kv.key, '${kv.value}'));
+        }
+    }
+    // 未在语义化里覆盖的原始字段兜底
+    final covered = <String>{for (final f in fields.skip(1)) f.$1};
+    for (final kv in d.entries) {
+      if (!covered.contains(kv.key)) fields.add((kv.key, '${kv.value}'));
+    }
+    fields.add(('时间', _fullTime(e.t)));
+    return fields;
   }
 }

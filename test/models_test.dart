@@ -90,6 +90,29 @@ void main() {
       expect(e.detail['code'], 'rate_limited');
       expect(e.t.millisecondsSinceEpoch, 1724060000000);
     });
+
+    test('detail 字段展开在顶层时也能解析（网关真实格式）', () {
+      // pushEvent: {t, type, ...detail} — detail 直接展开在顶层
+      final e = EventEntry.fromJson({
+        't': 1724060000000,
+        'type': 'status_change',
+        'name': 'proxy-a',
+        'from': 'ok',
+        'to': 'depleted',
+        'reason': 'rate_limited',
+        'detail': '429 from upstream',
+      });
+      expect(e.detail['name'], 'proxy-a');
+      expect(e.detail['from'], 'ok');
+      expect(e.detail['to'], 'depleted');
+      expect(e.detail['reason'], 'rate_limited');
+      expect(e.detail['detail'], '429 from upstream');
+    });
+
+    test('缺失字段容错', () {
+      final e = EventEntry.fromJson({'t': 1, 'type': 'x'});
+      expect(e.detail, isEmpty);
+    });
   });
 
   group('RouteEntry', () {
