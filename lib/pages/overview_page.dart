@@ -29,8 +29,7 @@ class OverviewPage extends StatelessWidget {
                 actions: [
                   Padding(
                     padding: const EdgeInsets.only(right: 4),
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
+                    child: TapFeedback(
                       onTap: state.refreshNow,
                       child: const Padding(
                         padding: EdgeInsets.all(10),

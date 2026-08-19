@@ -116,8 +116,7 @@ class _SettingsPageState extends State<SettingsPage> {
     bool destructive = false,
   }) {
     final color = destructive ? ShadcnColors.danger : fgColor(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return TapFeedback(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -181,8 +180,7 @@ class _SettingsPageState extends State<SettingsPage> {
               GlassAppBar(
                 title: const Text('设置'),
                 actions: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+                  TapFeedback(
                     onTap: _busy ? null : _loadCfg,
                     child: const Padding(
                       padding: EdgeInsets.all(10),

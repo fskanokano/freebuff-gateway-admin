@@ -54,10 +54,16 @@ class _ShellPageState extends State<ShellPage> {
     // Tab 切换: 内容区淡入（IndexedStack 保持各页状态）
     final animated = TweenAnimationBuilder<double>(
       key: ValueKey(_index),
-      tween: Tween(begin: 0.45, end: 1),
-      duration: const Duration(milliseconds: 260),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
-      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      builder: (context, v, child) => Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(20 * (1 - v), 0),
+          child: child,
+        ),
+      ),
       child: content,
     );
     return CupertinoPageScaffold(
@@ -101,8 +107,7 @@ class _ShellPageState extends State<ShellPage> {
                 children: [
                   for (final (i, t) in _tabs.indexed)
                     Expanded(
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
+                      child: TapFeedback(
                         onTap: () => setState(() => _index = i),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -161,8 +166,7 @@ class _ShellPageState extends State<ShellPage> {
                 size: 26, color: primary),
             const SizedBox(height: 20),
             for (final (i, t) in _tabs.indexed)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
+              TapFeedback(
                 onTap: () => setState(() => _index = i),
                 child: Padding(
                   padding:

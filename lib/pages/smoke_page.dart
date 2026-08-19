@@ -118,8 +118,7 @@ class _SmokePageState extends State<SmokePage> {
                               child: _modelPicker(context),
                             ),
                             const SizedBox(width: 8),
-                            GestureDetector(
-                              behavior: HitTestBehavior.opaque,
+                            TapFeedback(
                               onTap: _loadModels,
                               child: const Padding(
                                 padding: EdgeInsets.all(8),

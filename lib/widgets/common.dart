@@ -290,7 +290,7 @@ class UsageBar extends StatelessWidget {
   }
 }
 
-/// 筛选胶囊（自绘）。
+/// 筛选胶囊（自绘，带按压反馈）。
 class ShadcnPill extends StatelessWidget {
   const ShadcnPill(this.label, {super.key, required this.selected, required this.onTap});
 
@@ -301,8 +301,9 @@ class ShadcnPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primary = schemeColor(context);
-    return GestureDetector(
+    return TapFeedback(
       onTap: onTap,
+      scale: 0.94,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(
@@ -402,7 +403,7 @@ class ErrorBanner extends StatelessWidget {
                 style: TextStyle(fontSize: 13, color: danger)),
           ),
           if (onRetry != null)
-            GestureDetector(
+            TapFeedback(
               onTap: onRetry,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -550,4 +551,72 @@ Widget fadeSlideIn(Widget child, {int delayMs = 0}) {
         curve: Curves.easeOutCubic,
         delay: delayMs.ms,
       );
+}
+
+/// 按压反馈包装: 按下缩放 + 变暗, 松手回弹（所有可点击元素的统一反馈）。
+class TapFeedback extends StatefulWidget {
+  const TapFeedback({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.scale = 0.96,
+    this.dim = 0.12,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final double scale;
+  final double dim;
+
+  @override
+  State<TapFeedback> createState() => _TapFeedbackState();
+}
+
+class _TapFeedbackState extends State<TapFeedback>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 110),
+    reverseDuration: const Duration(milliseconds: 160),
+    value: 0,
+  );
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _press() {
+    if (widget.onTap != null && !_c.isAnimating) _c.forward();
+  }
+
+  void _release() {
+    if (_c.value > 0) _c.reverse();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: widget.onTap == null ? null : (_) => _press(),
+      onTapUp: widget.onTap == null ? null : (_) => _release(),
+      onTapCancel: widget.onTap == null ? null : _release,
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, child) {
+          final t = Curves.easeOutCubic.transform(_c.value);
+          return Transform.scale(
+            scale: 1 - (1 - widget.scale) * t,
+            child: Opacity(
+              opacity: 1 - widget.dim * t,
+              child: child,
+            ),
+          );
+        },
+        child: widget.child,
+      ),
+    );
+  }
 }

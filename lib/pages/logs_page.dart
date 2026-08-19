@@ -161,8 +161,7 @@ class _LogsPageState extends State<LogsPage> {
               GlassAppBar(
                 title: const Text('日志'),
                 actions: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+                  TapFeedback(
                     onTap: _clearing ? null : _clear,
                     child: const Padding(
                       padding: EdgeInsets.all(10),
@@ -307,8 +306,7 @@ class _LogsPageState extends State<LogsPage> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ShadCard(
         padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        child: TapFeedback(
           onTap: () => setState(() => _expandedId = expanded ? null : item.id),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,12 +329,17 @@ class _LogsPageState extends State<LogsPage> {
                 Text(relativeTime(item.t),
                     style: ShadTheme.of(context).textTheme.small),
                 const SizedBox(width: 4),
-                Icon(
-                    expanded
-                        ? CupertinoIcons.chevron_up
-                        : CupertinoIcons.chevron_down,
+                // 展开箭头: 旋转动画
+                AnimatedRotation(
+                  turns: expanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(
+                    CupertinoIcons.chevron_down,
                     size: 13,
-                    color: mutedColor(context)),
+                    color: mutedColor(context),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 3),
@@ -346,11 +349,21 @@ class _LogsPageState extends State<LogsPage> {
               maxLines: expanded ? null : 2,
               overflow: expanded ? null : TextOverflow.ellipsis,
             ),
-            if (expanded) ...[
-              const SizedBox(height: 8),
-              ShadcnDivider(),
-              const SizedBox(height: 6),
-              ...item.detailFields.map((f) => Padding(
+            // 详情: AnimatedSize 平滑展开/收起
+            ClipRect(
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: expanded
+                    ? Column(
+                        key: ValueKey('detail-${item.id}'),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          ShadcnDivider(),
+                          const SizedBox(height: 6),
+                          ...item.detailFields.map((f) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 1.5),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,10 +379,14 @@ class _LogsPageState extends State<LogsPage> {
                         ),
                       ],
                     ),
-                  )),
+                          )),
+                        ],
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
+            ),
             ],
-          ],
-        ),
+          ),
         ),
       ),
     ),

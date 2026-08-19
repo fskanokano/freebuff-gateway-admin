@@ -184,8 +184,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          TapFeedback(
             onTap: _busy ? null : _probeAll,
             child: const Padding(
               padding: EdgeInsets.all(10),
@@ -193,8 +192,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
             ),
           ),
           const SizedBox(width: 4),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          TapFeedback(
             onTap: _busy ? null : () => _editProxy(),
             child: const Padding(
               padding: EdgeInsets.all(10),
@@ -236,8 +234,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          TapFeedback(
             onTap: (stickyKey == null || stickyKey.isEmpty) ? null : _unpin,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
