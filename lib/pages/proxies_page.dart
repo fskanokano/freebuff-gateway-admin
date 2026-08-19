@@ -80,6 +80,14 @@ class _ProxiesPageState extends State<ProxiesPage> {
     });
   }
 
+  /// 解除当前会话的常驻钉住。
+  Future<void> _unpin() async {
+    final api = widget.state.api;
+    final key = widget.state.pinStatus?.stickyKey;
+    if (api == null || key == null || key.isEmpty) return;
+    await _run(() => api.clearPin(key), success: '已解除常驻');
+  }
+
   Future<void> _editProxy([ProxyInfo? existing]) async {
     final api = widget.state.api;
     if (api == null) return;
@@ -175,7 +183,14 @@ class _ProxiesPageState extends State<ProxiesPage> {
                     if (widget.state.hasError)
                       ErrorBanner(widget.state.lastError ?? '连接失败',
                           onRetry: widget.state.refreshNow),
-                    ...proxies.map((p) => _proxyCard(context, p)),
+                    // 当前会话常驻代理横幅
+                    _PinnedBanner(
+                      pinned: widget.state.pinStatus?.pinnedProxy,
+                      stickyKey: widget.state.pinStatus?.stickyKey,
+                      onUnpin: () => _unpin(),
+                    ),
+                    ...proxies.map((p) => _proxyCard(
+                        context, p, widget.state.pinStatus?.pinnedProxy)),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -209,11 +224,13 @@ class _ProxiesPageState extends State<ProxiesPage> {
     );
   }
 
-  Widget _proxyCard(BuildContext context, ProxyInfo p) {
+  Widget _proxyCard(BuildContext context, ProxyInfo p, String? pinnedProxy) {
     final scheme = Theme.of(context).colorScheme;
     final t = Theme.of(context).textTheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    final isPinned = pinnedProxy != null && pinnedProxy.isNotEmpty && pinnedProxy == p.name;
+    final card = Card(
+      margin: EdgeInsets.only(
+          bottom: 12, left: isPinned ? 1 : 0, right: isPinned ? 1 : 0),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -221,6 +238,10 @@ class _ProxiesPageState extends State<ProxiesPage> {
           children: [
             Row(
               children: [
+                if (isPinned) ...[
+                  _PinnedBadge(),
+                  const SizedBox(width: 8),
+                ],
                 StatusBadge(p.status),
                 const SizedBox(width: 8),
                 Expanded(
@@ -303,6 +324,8 @@ class _ProxiesPageState extends State<ProxiesPage> {
         ),
       ),
     );
+    // 常驻代理：包裹呼吸发光特效
+    return _GlowCard(glow: isPinned, child: card);
   }
 
   Widget _timeRows(BuildContext context, ProxyInfo p) {
@@ -477,6 +500,166 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
         url: _url.text.trim().replaceAll(RegExp(r'/+$'), ''),
         apiKey: key,
       ),
+    );
+  }
+}
+
+/// 顶部"当前常驻代理"横幅（可一键解除）。
+class _PinnedBanner extends StatelessWidget {
+  const _PinnedBanner({required this.pinned, required this.stickyKey, required this.onUnpin});
+
+  final String? pinned;
+  final String? stickyKey;
+  final VoidCallback onUnpin;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pinned;
+    if (p == null || p.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: scheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Icon(Icons.push_pin, size: 18, color: scheme.onPrimaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '当前常驻代理：$p',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: (stickyKey == null || stickyKey!.isEmpty) ? null : onUnpin,
+              icon: const Icon(Icons.push_pin_outlined, size: 16),
+              label: const Text('解除常驻'),
+              style: TextButton.styleFrom(
+                foregroundColor: scheme.onPrimaryContainer,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 呼吸发光容器：常驻代理卡片外框（脉动阴影 + 主题色描边）。
+class _GlowCard extends StatefulWidget {
+  const _GlowCard({required this.glow, required this.child});
+
+  final bool glow;
+  final Widget child;
+
+  @override
+  State<_GlowCard> createState() => _GlowCardState();
+}
+
+class _GlowCardState extends State<_GlowCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.glow) return widget.child;
+    final color = Theme.of(context).colorScheme.primary;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final v = _c.value; // 0..1 往返
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.18 + 0.30 * v),
+                blurRadius: 8 + 14 * v,
+                spreadRadius: 0.5 + 1.5 * v,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// "常驻"徽标：push_pin + 呼吸动画。
+class _PinnedBadge extends StatefulWidget {
+  const _PinnedBadge();
+
+  @override
+  State<_PinnedBadge> createState() => _PinnedBadgeState();
+}
+
+class _PinnedBadgeState extends State<_PinnedBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final v = _c.value;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.12 + 0.10 * v),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: scheme.primary.withValues(alpha: 0.45 + 0.55 * v),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.push_pin,
+                  size: 13,
+                  color: scheme.primary.withValues(alpha: 0.7 + 0.3 * v)),
+              const SizedBox(width: 4),
+              Text(
+                '常驻',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.primary.withValues(alpha: 0.75 + 0.25 * v),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

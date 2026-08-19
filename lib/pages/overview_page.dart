@@ -111,34 +111,43 @@ class OverviewPage extends StatelessWidget {
   }
 
   Widget _recentRoutes(BuildContext context) {
-    final recent = state.pinStatus?.recentProxies ?? const <RecentProxy>[];
-    if (recent.isEmpty) {
+    // 与日志页同源（overview.routes，每次请求都记录），
+    // 保证仪表盘与日志数据一致；不依赖 last-used（仅成功路由写入）。
+    final routes = state.overview?.routes ?? const <RouteEntry>[];
+    final recent = [...routes]..sort((a, b) => b.t.compareTo(a.t));
+    final list = recent.take(5).toList();
+    if (list.isEmpty) {
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text('暂无路由记录 — 先发一条聊天请求，网关会显示路由事实。',
+          child: Text('暂无路由记录 — 发一条聊天请求后这里会显示路由事实。',
               style: Theme.of(context).textTheme.bodySmall),
         ),
       );
     }
-    final pinned = state.pinStatus?.pinnedProxy;
     return Card(
       child: Column(
         children: [
-          for (final (i, r) in recent.indexed) ...[
+          for (final (i, r) in list.indexed) ...[
             if (i > 0) const Divider(height: 1),
             ListTile(
               dense: true,
               leading: Icon(
-                r.name == pinned ? Icons.push_pin : Icons.route,
+                r.ok ? Icons.check_circle : Icons.cancel,
                 size: 20,
-                color: r.name == pinned ? Colors.blue : null,
+                color: r.ok ? Colors.green : Colors.red,
               ),
-              title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: Text(
-                '${relativeTime(r.lastUsed)} · 累计 ${r.requestsOk} 次',
+              title: Text('路由 → ${r.name}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(
+                'HTTP ${r.status} · 尝试 ${r.attempts} 次 · ${r.ms}ms'
+                '${r.model != null ? ' · ${r.model}' : ''}',
                 style: Theme.of(context).textTheme.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
+              trailing: Text(relativeTime(r.t),
+                  style: Theme.of(context).textTheme.bodySmall),
             ),
           ],
         ],
