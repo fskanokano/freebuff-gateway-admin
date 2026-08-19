@@ -3,8 +3,10 @@
 library;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show RefreshIndicator, Tooltip;
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import '../l10n/l10n_ext.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -55,7 +57,7 @@ class _SmokePageState extends State<SmokePage> {
       });
     } catch (e) {
       if (mounted) {
-        showShadcnToast(context, '模型列表拉取失败（可手动输入模型名）: $e');
+        showShadcnToast(context, context.l10n.smokeModelLoadFailed(e.toString()));
       }
     } finally {
       if (mounted) setState(() => _loadingModels = false);
@@ -100,10 +102,13 @@ class _SmokePageState extends State<SmokePage> {
     return CupertinoPageScaffold(
       child: Column(
         children: [
-          const GlassAppBar(title: Text('测试')),
+          GlassAppBar(title: Text(context.l10n.tabSmoke)),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: RefreshIndicator(
+              onRefresh: widget.state.refreshNow,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -118,12 +123,15 @@ class _SmokePageState extends State<SmokePage> {
                               child: _modelPicker(context),
                             ),
                             const SizedBox(width: 8),
-                            TapFeedback(
-                              onTap: _loadModels,
-                              child: const Padding(
-                                padding: EdgeInsets.all(8),
-                                child:
-                                    Icon(CupertinoIcons.refresh, size: 17),
+                            Tooltip(
+                              message: context.l10n.commonRefresh,
+                              child: TapFeedback(
+                                onTap: _loadModels,
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child:
+                                      Icon(CupertinoIcons.refresh, size: 17),
+                                ),
                               ),
                             ),
                           ],
@@ -131,12 +139,12 @@ class _SmokePageState extends State<SmokePage> {
                         const SizedBox(height: 4),
                         ShadInput(
                           controller: _customModel,
-                          placeholder: Text('或手动输入模型名（如 freebuff-1）'),
+                          placeholder: Text(context.l10n.smokeCustomModel),
                         ),
                         const SizedBox(height: 12),
                         ShadInput(
                           controller: _prompt,
-                          placeholder: Text('测试提示词'),
+                          placeholder: Text(context.l10n.smokePrompt),
                           maxLines: 2,
                         ),
                         const SizedBox(height: 14),
@@ -146,23 +154,24 @@ class _SmokePageState extends State<SmokePage> {
                           child: _running
                               ? const CupertinoActivityIndicator(
                                   color: CupertinoColors.white)
-                              : const Text('发送测试请求'),
+                              : Text(context.l10n.smokeRun),
                         ),
                       ],
                     ),
                   ),
                   if (_result != null) ...[
-                    const SectionTitle('本次结果'),
+                    SectionTitle(context.l10n.smokeResult),
                     _resultCard(context, _result!),
                   ],
                   if (_history.isNotEmpty) ...[
-                    const SectionTitle('历史记录'),
+                    SectionTitle(context.l10n.smokeHistory),
                     ..._history
                         .take(10)
                         .map((r) => _resultCard(context, r, compact: true)),
                   ],
                 ],
               ),
+            ),
             ),
           ),
         ],
@@ -172,21 +181,22 @@ class _SmokePageState extends State<SmokePage> {
 
   Widget _modelPicker(BuildContext context) {
     if (_loadingModels) {
-      return const Row(
+      return Row(
         children: [
-          CupertinoActivityIndicator(radius: 8),
-          SizedBox(width: 10),
-          Text('加载模型…', style: TextStyle(fontSize: 13)),
+          const CupertinoActivityIndicator(radius: 8),
+          const SizedBox(width: 10),
+          Text(context.l10n.smokeLoadingModels,
+              style: const TextStyle(fontSize: 13)),
         ],
       );
     }
     if (_models.isEmpty) {
-      return Text('无可用模型（可手动输入）',
+      return Text(context.l10n.smokeNoModels,
           style: ShadTheme.of(context).textTheme.small);
     }
     return ShadSelect<String>(
       minWidth: double.infinity,
-      placeholder: Text(_model ?? '选择模型'),
+      placeholder: Text(_model ?? context.l10n.smokeSelectModel),
       onChanged: (v) {
         if (v != null) setState(() => _model = v);
       },
@@ -216,9 +226,9 @@ class _SmokePageState extends State<SmokePage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'HTTP ${r.status} ${ok ? '成功' : '失败'}'
-                  '${r.proxy != null ? ' · 路由到 ${r.proxy}' : ''}'
-                  ' · 尝试 ${r.attempts} 次 · ${r.ms}ms',
+                  'HTTP ${r.status} ${ok ? context.l10n.smokeOk : context.l10n.smokeFail}'
+                  '${r.proxy != null ? ' · ${context.l10n.fieldRouteTo} ${r.proxy}' : ''}'
+                  ' · ${context.l10n.smokeAttempts('${r.attempts}')} · ${r.ms}ms',
                   style: ShadTheme.of(context)
                       .textTheme
                       .p

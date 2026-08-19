@@ -5,6 +5,7 @@ library;
 import 'package:flutter/cupertino.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import '../l10n/l10n_ext.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
@@ -42,15 +43,15 @@ class _ConnectPageState extends State<ConnectPage> {
     final url = _url.text.trim();
     final key = _key.text.trim();
     if (url.isEmpty) {
-      setState(() => _error = '请输入网关地址');
+      setState(() => _error = context.l10n.connectErrUrlEmpty);
       return;
     }
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      setState(() => _error = '需以 http:// 或 https:// 开头');
+      setState(() => _error = context.l10n.connectErrUrlScheme);
       return;
     }
     if (key.isEmpty) {
-      setState(() => _error = '请输入密钥');
+      setState(() => _error = context.l10n.connectErrKeyEmpty);
       return;
     }
     setState(() {
@@ -85,28 +86,28 @@ class _ConnectPageState extends State<ConnectPage> {
                   Icon(CupertinoIcons.arrow_2_circlepath,
                       size: 56, color: primary),
                   const SizedBox(height: 14),
-                  Text('FreeBuff 网关管理',
+                  Text(context.l10n.connectTitle,
                       textAlign: TextAlign.center,
                       style: ShadTheme.of(context).textTheme.h1),
                   const SizedBox(height: 6),
-                  Text('连接你的 freebuff-proxy-gateway 实例',
+                  Text(context.l10n.connectSubtitle,
                       textAlign: TextAlign.center,
                       style: ShadTheme.of(context).textTheme.muted),
                   const SizedBox(height: 30),
                   ShadInput(
                     controller: _url,
-                    placeholder: Text('https://gateway.example.workers.dev'),
+                    placeholder: Text(context.l10n.connectUrlPlaceholder),
                     keyboardType: TextInputType.url,
                   ),
                   const SizedBox(height: 12),
                   ShadInput(
                     controller: _key,
-                    placeholder: Text('ADMIN_KEY 或 API_KEY'),
+                    placeholder: Text(context.l10n.connectKeyPlaceholder),
                     obscureText: true,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '密钥仅保存在本机，用于请求 /admin/api/* 接口',
+                    context.l10n.connectKeyHint,
                     textAlign: TextAlign.center,
                     style: ShadTheme.of(context).textTheme.small,
                   ),
@@ -124,7 +125,7 @@ class _ConnectPageState extends State<ConnectPage> {
                     child: _busy
                         ? const CupertinoActivityIndicator(
                             color: CupertinoColors.white)
-                        : const Text('连接并验证'),
+                        : Text(context.l10n.connectButton),
                   ),
                 ],
               ),

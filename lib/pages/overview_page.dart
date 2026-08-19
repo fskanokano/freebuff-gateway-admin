@@ -3,8 +3,10 @@
 library;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show RefreshIndicator, Tooltip;
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import '../l10n/l10n_ext.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -25,15 +27,18 @@ class OverviewPage extends StatelessWidget {
           return Column(
             children: [
               GlassAppBar(
-                title: const Text('仪表盘'),
+                title: Text(context.l10n.tabDashboard),
                 actions: [
                   Padding(
                     padding: const EdgeInsets.only(right: 4),
-                    child: TapFeedback(
-                      onTap: state.refreshNow,
-                      child: const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: Icon(CupertinoIcons.refresh, size: 20),
+                    child: Tooltip(
+                      message: context.l10n.commonRefresh,
+                      child: TapFeedback(
+                        onTap: state.refreshNow,
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(CupertinoIcons.refresh, size: 20),
+                        ),
                       ),
                     ),
                   ),
@@ -42,24 +47,30 @@ class OverviewPage extends StatelessWidget {
               Expanded(
                 child: ov == null && !state.hasError
                     ? const Center(child: CupertinoActivityIndicator())
-                    : SingleChildScrollView(
+                    : RefreshIndicator(
+                        onRefresh: state.refreshNow,
+                        child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _connectionCard(context),
                             if (state.hasError)
-                              ErrorBanner(state.lastError ?? '连接失败',
+                              ErrorBanner(
+                                  context.l10n.errorText(
+                                      state.lastErrorKind, state.lastError),
                                   onRetry: state.refreshNow),
                             if (ov != null) ...[
-                              const SectionTitle('代理状态'),
+                              SectionTitle(context.l10n.overviewProxyStatus),
                               _statsGrid(context, ov.stats),
-                              const SectionTitle('最近路由'),
+                              SectionTitle(context.l10n.overviewRecentRoutes),
                               _recentRoutes(context),
-                              const SectionTitle('代理健康'),
+                              SectionTitle(context.l10n.overviewProxyHealth),
                               _proxyList(context, ov.proxies),
                             ],
                           ],
+                        ),
                         ),
                       ),
               ),
@@ -97,8 +108,9 @@ class OverviewPage extends StatelessWidget {
                     overflow: TextOverflow.ellipsis),
                 Text(
                   updated == null
-                      ? '等待数据…'
-                      : '更新于 ${relativeTime(updated)} · 每 5s 轮询',
+                      ? context.l10n.overviewWaiting
+                      : context.l10n.overviewUpdatedAt(
+                          context.l10n.relativeTime(updated)),
                   style: ShadTheme.of(context).textTheme.small,
                 ),
               ],
@@ -119,45 +131,45 @@ class OverviewPage extends StatelessWidget {
       childAspectRatio: 1.55,
       children: [
         fadeSlideIn(StatCard(
-            label: '代理总数',
+            label: context.l10n.overviewTotalProxies,
             value: '${s.total}',
             icon: CupertinoIcons.square_stack,
-            subtitle: '已配置'),
+            subtitle: context.l10n.overviewSubConfigured),
             delayMs: 0),
         fadeSlideIn(StatCard(
-            label: '正常',
+            label: context.l10n.overviewOk,
             value: '${s.ok}',
             color: ShadcnColors.okFor(context),
             icon: CupertinoIcons.checkmark_circle,
-            subtitle: '可用'),
+            subtitle: context.l10n.overviewSubAvailable),
             delayMs: 40),
         fadeSlideIn(StatCard(
-            label: '额度耗尽',
+            label: context.l10n.overviewDepleted,
             value: '${s.depleted}',
             color: ShadcnColors.warningFor(context),
             icon: CupertinoIcons.hourglass,
-            subtitle: '等待重置'),
+            subtitle: context.l10n.overviewSubWaitReset),
             delayMs: 80),
         fadeSlideIn(StatCard(
-            label: '故障',
+            label: context.l10n.overviewDown,
             value: '${s.down}',
             color: ShadcnColors.dangerFor(context),
             icon: CupertinoIcons.exclamationmark_triangle,
-            subtitle: '含配置错误'),
+            subtitle: context.l10n.overviewSubInclBadCfg),
             delayMs: 120),
         fadeSlideIn(StatCard(
-            label: '成功请求',
-            value: '${s.requestsOk}',
+            label: context.l10n.overviewReqOk,
+            value: formatCount(s.requestsOk),
             color: schemeColor(context),
             icon: CupertinoIcons.hand_thumbsup,
-            subtitle: '累计'),
+            subtitle: context.l10n.overviewSubCumulative),
             delayMs: 160),
         fadeSlideIn(StatCard(
-            label: '失败请求',
-            value: '${s.requestsFail}',
+            label: context.l10n.overviewReqFail,
+            value: formatCount(s.requestsFail),
             color: ShadcnColors.dangerFor(context),
             icon: CupertinoIcons.hand_thumbsdown,
-            subtitle: '累计'),
+            subtitle: context.l10n.overviewSubCumulative),
             delayMs: 200),
       ],
     );
@@ -172,7 +184,7 @@ class OverviewPage extends StatelessWidget {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Text('暂无路由记录 — 发一条聊天请求后这里会显示路由事实。',
+            child: Text(context.l10n.overviewNoRoutes,
                 style: ShadTheme.of(context).textTheme.small),
           ),
         ),
@@ -200,13 +212,18 @@ class OverviewPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('路由 → ${r.name}',
+                        Text(
+                            context.l10n.logsRouteTitle(
+                                r.name,
+                                r.ok
+                                    ? context.l10n.logsRouteOk
+                                    : context.l10n.logsRouteFail),
                             style: ShadTheme.of(context).textTheme.p,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         Text(
-                          'HTTP ${r.status} · 尝试 ${r.attempts} 次 · ${r.ms}ms'
-                          '${r.model != null ? ' · ${r.model}' : ''}',
+                          context.l10n.logsHttpAttempts(r.status, r.attempts, r.ms) +
+                              (r.model != null ? ' · ${r.model}' : ''),
                           style: ShadTheme.of(context).textTheme.small,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -215,7 +232,7 @@ class OverviewPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(relativeTime(r.t),
+                  Text(context.l10n.relativeTime(r.t),
                       style: ShadTheme.of(context).textTheme.small),
                 ],
               ),
@@ -233,7 +250,8 @@ class OverviewPage extends StatelessWidget {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Text('暂无代理', style: ShadTheme.of(context).textTheme.small),
+            child: Text(context.l10n.overviewNoProxies,
+                style: ShadTheme.of(context).textTheme.small),
           ),
         ),
       );
@@ -283,7 +301,7 @@ class OverviewPage extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '${p.requestsOk}✓/${p.requestsFail}✗',
+                    '${formatCount(p.requestsOk)}✓/${formatCount(p.requestsFail)}✗',
                     style: ShadTheme.of(context).textTheme.small,
                   ),
                 ],

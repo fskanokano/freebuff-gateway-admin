@@ -2,10 +2,15 @@
 /// 基于 flutter-shadcn-ui 组件（分组卡片 + 自绘行）。
 library;
 
-import 'package:flutter/cupertino.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:flutter/material.dart' show ThemeMode;
+import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:flutter/material.dart' show RefreshIndicator, ThemeMode, Tooltip;
+
+import '../l10n/l10n_ext.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -22,12 +27,24 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _busy = false;
+  bool _revealAdminKey = false;
   GatewayConfig? _cfg;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadCfg();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadCfg() async {
@@ -47,7 +64,9 @@ class _SettingsPageState extends State<SettingsPage> {
       await _loadCfg();
       await widget.state.refreshNow();
     } catch (e) {
-      if (mounted) showShadcnToast(context, '操作失败: $e');
+      if (mounted) {
+        showShadcnToast(context, context.l10n.proxiesOpFailed(e.toString()));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -62,7 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     if (result != null && mounted) {
       await _run(() => widget.state.saveConnection(result.$1, result.$2),
-          ok: '连接已更新');
+          ok: context.l10n.settingsConnUpdated);
     }
   }
 
@@ -74,22 +93,24 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (_) => _ParamsDialog(config: c),
     );
     if (result != null && mounted) {
-      await _run(() => widget.state.api!.saveSettings(result), ok: '参数已保存并生效');
+      await _run(() => widget.state.api!.saveSettings(result),
+          ok: context.l10n.settingsParamsSaved);
     }
   }
 
   Future<void> _resetConfig() async {
     final api = widget.state.api;
     if (api == null) return;
+    final l10n = context.l10n;
     final ok = await showShadcnConfirm(
       context,
-      title: '恢复环境变量配置',
-      message: '清除后台保存的运行时配置（代理列表与参数），恢复为部署时的环境变量。确定吗？',
-      confirmText: '恢复',
+      title: l10n.settingsResetTitle,
+      message: l10n.settingsResetMessage,
+      confirmText: l10n.settingsResetConfirm,
       destructive: true,
     );
     if (ok == true) {
-      await _run(() => api.resetConfig(), ok: '已恢复环境变量配置');
+      await _run(() => api.resetConfig(), ok: l10n.settingsResetDone);
     }
   }
 
@@ -97,7 +118,50 @@ class _SettingsPageState extends State<SettingsPage> {
     final api = widget.state.api;
     final key = widget.state.pinStatus?.stickyKey;
     if (api == null || key == null || key.isEmpty) return;
-    await _run(() => api.clearPin(key), ok: '已解除常驻钉住');
+    await _run(() => api.clearPin(key), ok: context.l10n.settingsPinCleared);
+  }
+
+  Future<void> _exportBackup() async {
+    final api = widget.state.api;
+    if (api == null) return;
+    try {
+      final bundle = await api.exportBundle();
+      await Clipboard.setData(ClipboardData(text: jsonEncode(bundle)));
+      if (mounted) showShadcnToast(context, context.l10n.settingsExportDone);
+    } catch (e) {
+      if (mounted) showShadcnToast(context, context.l10n.settingsExportFailed(e.toString()));
+    }
+  }
+
+  Future<void> _importBackup() async {
+    final api = widget.state.api;
+    if (api == null) return;
+    final l10n = context.l10n;
+    final text = await showShadDialog<String>(
+      context: context,
+      builder: (_) => const _ImportDialog(),
+    );
+    if (text == null || text.trim().isEmpty || !mounted) return;
+    final ok = await showShadcnConfirm(
+      context,
+      title: l10n.settingsImportTitle,
+      message: l10n.settingsImportMessage,
+      confirmText: l10n.commonImport,
+      destructive: true,
+    );
+    if (ok != true) return;
+    try {
+      final decoded = jsonDecode(text.trim());
+      if (decoded is! Map) throw FormatException(l10n.settingsBadJson);
+      await api.importBundle(decoded.cast<String, dynamic>());
+      if (mounted) {
+        showShadcnToast(context, l10n.settingsImportDone);
+        await _loadCfg();
+        await widget.state.refreshNow();
+      }
+    } catch (e) {
+      if (mounted) showShadcnToast(context, l10n.settingsImportFailed(e.toString()));
+    }
   }
 
   Future<void> _logout() async {
@@ -178,87 +242,123 @@ class _SettingsPageState extends State<SettingsPage> {
           return Column(
             children: [
               GlassAppBar(
-                title: const Text('设置'),
+                title: Text(context.l10n.tabSettings),
                 actions: [
-                  TapFeedback(
-                    onTap: _busy ? null : _loadCfg,
-                    child: const Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Icon(CupertinoIcons.refresh, size: 19),
+                  Tooltip(
+                    message: context.l10n.commonRefresh,
+                    child: TapFeedback(
+                      onTap: _busy ? null : _loadCfg,
+                      child: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(CupertinoIcons.refresh, size: 19),
+                      ),
                     ),
                   ),
                 ],
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                child: RefreshIndicator(
+                  onRefresh: widget.state.refreshNow,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SectionTitle('连接'),
+                      SectionTitle(context.l10n.settingsSectionConn),
                       _group(context, [
-                        _row(label: '网关地址', value: widget.state.baseUrl ?? '未配置'),
-                        _row(label: '管理员密钥', value: widget.state.adminKey ?? '未配置'),
-                        _row(label: '轮询状态',
-                            value: widget.state.polling ? '每 5s 刷新' : '未运行'),
-                        _row(label: '修改连接', onTap: _busy ? null : _editConnection,
+                        _row(label: context.l10n.settingsGatewayUrl,
+                            value: widget.state.baseUrl ?? context.l10n.commonUnconfigured),
+                        _row(
+                          label: context.l10n.settingsAdminKey,
+                          value: _revealAdminKey
+                              ? (widget.state.adminKey ?? context.l10n.commonUnconfigured)
+                              : maskKey(widget.state.adminKey),
+                          onTap: (widget.state.adminKey == null || widget.state.adminKey!.isEmpty)
+                              ? null
+                              : () => setState(() => _revealAdminKey = !_revealAdminKey),
+                          trailing: (widget.state.adminKey == null || widget.state.adminKey!.isEmpty)
+                              ? null
+                              : Icon(
+                                  _revealAdminKey
+                                      ? CupertinoIcons.eye_slash
+                                      : CupertinoIcons.eye,
+                                  size: 14,
+                                  color: mutedColor(context),
+                                ),
+                        ),
+                        _row(label: context.l10n.settingsPolling,
+                            value: widget.state.polling
+                                ? context.l10n.settingsPollingRunning
+                                : context.l10n.settingsPollingStopped),
+                        _row(label: context.l10n.settingsEditConn,
+                            onTap: _busy ? null : _editConnection,
                             trailing: Icon(CupertinoIcons.chevron_right,
                                 size: 14, color: mutedColor(context))),
-                        _row(label: '登出', destructive: true,
+                        _row(label: context.l10n.settingsLogout, destructive: true,
                             onTap: _busy ? null : _logout),
                       ]),
-                      const SectionTitle('常驻代理'),
+                      SectionTitle(context.l10n.settingsSectionPin),
                       _group(context, [
-                        _row(label: '当前常驻', value: pin?.pinnedProxy ?? '无'),
-                        _row(label: 'Sticky Key', value: pin?.stickyKey ?? '—'),
-                        _row(label: 'Pin 模式', value: pin?.pinMode ?? '—'),
+                        _row(label: context.l10n.settingsCurrentPin,
+                            value: pin?.pinnedProxy ?? context.l10n.commonNone),
+                        _row(label: context.l10n.settingsStickyKey,
+                            value: pin?.stickyKey ?? '—'),
+                        _row(label: context.l10n.settingsPinMode,
+                            value: pin?.pinMode ?? '—'),
                         _row(
-                          label: '解除当前会话常驻',
+                          label: context.l10n.settingsClearPin,
                           onTap:
                               (_busy || (pin?.stickyKey ?? '').isEmpty) ? null : _clearPin,
                           trailing: Icon(CupertinoIcons.pin_slash,
                               size: 14, color: mutedColor(context)),
                         ),
                       ]),
-                      const SectionTitle('运行时配置'),
+                      SectionTitle(context.l10n.settingsSectionRuntime),
                       if (c == null)
                         _group(context, [
-                          _row(label: '无法读取配置（检查连接或密钥）'),
+                          _row(label: context.l10n.settingsCfgUnreadable),
                         ])
                       else ...[
                         _group(context, [
-                          _row(label: '代理数量', value: '${c.proxies.length}'),
-                          _row(label: 'Pin 模式', value: c.pinMode ?? '—'),
-                          _row(label: '探测模式', value: c.probeMode ?? '—'),
+                          _row(label: context.l10n.settingsProxyCount,
+                              value: '${c.proxies.length}'),
+                          _row(label: context.l10n.settingsPinMode,
+                              value: c.pinMode ?? '—'),
+                          _row(label: context.l10n.settingsProbeMode,
+                              value: c.probeMode ?? '—'),
                           _row(
-                            label: '来源',
+                            label: context.l10n.settingsSource,
                             value: c.hasRuntimeConfig
                                 ? (c.runtimeManaged
-                                    ? '后台运行时配置'
-                                    : '环境变量 + 运行时参数')
-                                : '环境变量',
+                                    ? context.l10n.settingsSourceRuntime
+                                    : context.l10n.settingsSourceMixed)
+                                : context.l10n.settingsSourceEnv,
                           ),
                         ]),
                         _group(context, [
-                          _row(label: '客户端 Key', value: c.apiKeyMasked ?? '—'),
+                          _row(label: context.l10n.settingsClientKey,
+                              value: c.apiKeyMasked ?? '—'),
                           if (c.adminUsesApiKey)
-                            _row(label: '管理鉴权', value: '复用 API_KEY')
+                            _row(label: context.l10n.settingsAdminAuth,
+                                value: context.l10n.settingsReuseApiKey)
                           else
-                            _row(label: '管理 Key',
+                            _row(label: context.l10n.settingsAdminKeyMasked,
                                 value: c.adminKeyMasked ?? '—'),
-                          _row(label: '代理 Key',
+                          _row(label: context.l10n.settingsProxyKey,
                               value: c.proxyKeysMasked ?? '—'),
                           if (c.runtimeError != null)
-                            _row(label: '运行时代理异常', value: c.runtimeError),
+                            _row(label: context.l10n.settingsRuntimeErr,
+                                value: c.runtimeError),
                         ]),
                         _group(context, [
-                          _row(label: '编辑参数',
+                          _row(label: context.l10n.settingsEditParams,
                               onTap: _busy ? null : _editParams,
                               trailing: Icon(
                                   CupertinoIcons.slider_horizontal_3,
                                   size: 14,
                                   color: mutedColor(context))),
-                          _row(label: '恢复环境变量',
+                          _row(label: context.l10n.settingsResetEnv,
                               onTap: _busy ? null : _resetConfig,
                               trailing: Icon(
                                   CupertinoIcons.arrow_counterclockwise,
@@ -266,7 +366,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                   color: mutedColor(context))),
                         ]),
                       ],
-                      const SectionTitle('外观'),
+                      SectionTitle(context.l10n.settingsSectionAppearance),
                       _group(context, [
                         Padding(
                           padding: const EdgeInsets.symmetric(
@@ -274,20 +374,39 @@ class _SettingsPageState extends State<SettingsPage> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('主题', style: ShadTheme.of(context).textTheme.p),
+                              Text(context.l10n.settingsTheme,
+                                  style: ShadTheme.of(context).textTheme.p),
                               _themePicker(context),
                             ],
                           ),
                         ),
                       ]),
-                      const SectionTitle('关于'),
+                      SectionTitle(context.l10n.settingsSectionBackup),
                       _group(context, [
-                        _row(label: '应用', value: 'FreeBuff 网关管理'),
-                        _row(label: '后端', value: 'freebuff-proxy-gateway'),
-                        _row(label: '接口', value: '/admin/api/*'),
+                        _row(
+                          label: context.l10n.settingsExport,
+                          onTap: _busy ? null : _exportBackup,
+                          trailing: Icon(CupertinoIcons.doc_on_clipboard,
+                              size: 14, color: mutedColor(context)),
+                        ),
+                        _row(
+                          label: context.l10n.settingsImport,
+                          onTap: _busy ? null : _importBackup,
+                          trailing: Icon(CupertinoIcons.arrow_down_to_line,
+                              size: 14, color: mutedColor(context)),
+                        ),
+                      ]),
+                      SectionTitle(context.l10n.settingsSectionAbout),
+                      _group(context, [
+                        _row(label: context.l10n.settingsApp, value: 'FreeBuff 网关管理'),
+                        if (_appVersion.isNotEmpty)
+                          _row(label: context.l10n.settingsVersion, value: _appVersion),
+                        _row(label: context.l10n.settingsBackend, value: 'freebuff-proxy-gateway'),
+                        _row(label: context.l10n.settingsApi, value: '/admin/api/*'),
                       ]),
                     ],
                   ),
+                ),
                 ),
               ),
             ],
@@ -302,10 +421,10 @@ class _SettingsPageState extends State<SettingsPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        for (final (mode, label) in const [
-          (ThemeMode.system, '系统'),
-          (ThemeMode.light, '亮'),
-          (ThemeMode.dark, '暗'),
+        for (final (mode, label) in [
+          (ThemeMode.system, context.l10n.settingsThemeSystem),
+          (ThemeMode.light, context.l10n.settingsThemeLight),
+          (ThemeMode.dark, context.l10n.settingsThemeDark),
         ])
           Padding(
             padding: const EdgeInsets.only(left: 4),
@@ -351,35 +470,91 @@ class _ConnectionDialogState extends State<_ConnectionDialog> {
   @override
   Widget build(BuildContext context) {
     return ShadDialog(
-      title: const Text('修改连接'),
+      title: Text(context.l10n.settingsEditConnTitle),
       description: const SizedBox(),
       // ignore: sort_child_properties_last
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 8),
-          ShadInput(controller: _url, placeholder: Text('网关地址')),
+          ShadInput(controller: _url,
+              placeholder: Text(context.l10n.settingsGatewayUrl)),
           const SizedBox(height: 10),
           ShadInput(
-              controller: _key, placeholder: Text('管理员密钥'), obscureText: true),
+              controller: _key,
+              placeholder: Text(context.l10n.settingsAdminKey),
+              obscureText: true),
         ],
       ),
       actions: [
         ShadButton.outline(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.commonCancel),
         ),
         ShadButton(
           onPressed: () {
             final u = _url.text.trim();
             final k = _key.text.trim();
             if (u.isEmpty || k.isEmpty) {
-              showShadcnToast(context, '地址与密钥不能为空');
+              showShadcnToast(context, context.l10n.settingsUrlKeyEmpty);
               return;
             }
             Navigator.pop(context, (u, k));
           },
-          child: const Text('保存'),
+          child: Text(context.l10n.commonSave),
+        ),
+      ],
+    );
+  }
+}
+
+/// 导入备份对话框：粘贴 JSON。
+class _ImportDialog extends StatefulWidget {
+  const _ImportDialog();
+
+  @override
+  State<_ImportDialog> createState() => _ImportDialogState();
+}
+
+class _ImportDialogState extends State<_ImportDialog> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ShadDialog(
+      title: Text(context.l10n.settingsImportTitle),
+      description: Text(context.l10n.settingsImportDesc),
+      // ignore: sort_child_properties_last
+      child: SizedBox(
+        width: 380,
+        child: ShadInput(
+          controller: _ctrl,
+          maxLines: 8,
+          minLines: 5,
+          placeholder: Text(context.l10n.settingsImportPlaceholder),
+        ),
+      ),
+      actions: [
+        ShadButton.outline(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.l10n.commonCancel),
+        ),
+        ShadButton(
+          onPressed: () {
+            final text = _ctrl.text.trim();
+            if (text.isEmpty) {
+              showShadcnToast(context, context.l10n.settingsImportPasteFirst);
+              return;
+            }
+            Navigator.pop(context, text);
+          },
+          child: Text(context.l10n.commonImport),
         ),
       ],
     );
@@ -446,12 +621,13 @@ class _ParamsDialogState extends State<_ParamsDialog> {
             children: [
               Text(label, style: ShadTheme.of(context).textTheme.small),
               const SizedBox(height: 6),
-              ShadInput(controller: c, placeholder: Text('请输入')),
+              ShadInput(controller: c,
+                  placeholder: Text(context.l10n.settingsInput)),
             ],
           ),
         );
     return ShadDialog(
-      title: const Text('编辑运行参数'),
+      title: Text(context.l10n.settingsEditParamsTitle),
       description: const SizedBox(),
       // ignore: sort_child_properties_last
       child: SingleChildScrollView(
@@ -459,35 +635,35 @@ class _ParamsDialogState extends State<_ParamsDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
-            _modePicker(context, 'Pin 模式', _pinMode, const [
-              ('client', 'client — 按网关 Key 钉住'),
-              ('header', 'header — 按 X-Sticky-Id 钉住'),
-              ('off', 'off — 关闭钉住'),
+            _modePicker(context, context.l10n.settingsPinMode, _pinMode, [
+              ('client', context.l10n.settingsPinModeClient),
+              ('header', context.l10n.settingsPinModeHeader),
+              ('off', context.l10n.settingsPinModeOff),
             ], (v) => setState(() => _pinMode = v)),
             const SizedBox(height: 10),
-            _modePicker(context, '探测模式', _probeMode, const [
-              ('smart', 'smart — 智能懒探测'),
-              ('scan', 'scan — 周期扫描'),
+            _modePicker(context, context.l10n.settingsProbeMode, _probeMode, [
+              ('smart', context.l10n.settingsProbeSmart),
+              ('scan', context.l10n.settingsProbeScan),
             ], (v) => setState(() => _probeMode = v)),
             const SizedBox(height: 10),
-            field(_pinTtl, 'Pin 有效期（秒, ≥60）'),
-            field(_stateTtl, '状态 TTL（秒, ≥60）'),
-            field(_depletedProbe, '耗尽重探测间隔（秒, ≥60）'),
-            field(_downProbe, '故障重探测间隔（秒, ≥30）'),
-            field(_probeTimeout, '探测超时（毫秒, ≥500）'),
-            field(_chatTimeout, '转发超时（毫秒, ≥1000）'),
-            field(_maxAttempts, '最大尝试次数（1-6）'),
+            field(_pinTtl, context.l10n.settingsPinTtl),
+            field(_stateTtl, context.l10n.settingsStateTtl),
+            field(_depletedProbe, context.l10n.settingsDepletedProbe),
+            field(_downProbe, context.l10n.settingsDownProbe),
+            field(_probeTimeout, context.l10n.settingsProbeTimeout),
+            field(_chatTimeout, context.l10n.settingsChatTimeout),
+            field(_maxAttempts, context.l10n.settingsMaxAttempts),
           ],
         ),
       ),
       actions: [
         ShadButton.outline(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.commonCancel),
         ),
         ShadButton(
           onPressed: _submit,
-          child: const Text('保存'),
+          child: Text(context.l10n.commonSave),
         ),
       ],
     );
@@ -529,20 +705,24 @@ class _ParamsDialogState extends State<_ParamsDialog> {
     final maxAttempts = parse(_maxAttempts);
 
     String? err;
-    if (pinTtl == null || pinTtl < 60) err = 'pinTtl 必须 ≥ 60';
-    if (err == null && (stateTtl == null || stateTtl < 60)) err = 'stateTtl 必须 ≥ 60';
-    if (err == null && (depletedProbe == null || depletedProbe < 60)) {
-      err = 'depletedProbe 必须 ≥ 60';
+    if (pinTtl == null || pinTtl < 60) err = context.l10n.settingsErrPinTtl;
+    if (err == null && (stateTtl == null || stateTtl < 60)) {
+      err = context.l10n.settingsErrStateTtl;
     }
-    if (err == null && (downProbe == null || downProbe < 30)) err = 'downProbe 必须 ≥ 30';
+    if (err == null && (depletedProbe == null || depletedProbe < 60)) {
+      err = context.l10n.settingsErrDepletedProbe;
+    }
+    if (err == null && (downProbe == null || downProbe < 30)) {
+      err = context.l10n.settingsErrDownProbe;
+    }
     if (err == null && (probeTimeout == null || probeTimeout < 500)) {
-      err = 'probeTimeout 必须 ≥ 500';
+      err = context.l10n.settingsErrProbeTimeout;
     }
     if (err == null && (chatTimeout == null || chatTimeout < 1000)) {
-      err = 'chatTimeout 必须 ≥ 1000';
+      err = context.l10n.settingsErrChatTimeout;
     }
     if (err == null && (maxAttempts == null || maxAttempts < 1 || maxAttempts > 6)) {
-      err = 'maxAttempts 必须在 1-6';
+      err = context.l10n.settingsErrMaxAttempts;
     }
     if (err != null) {
       showShadcnToast(context, err);

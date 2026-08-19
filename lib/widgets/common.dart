@@ -9,8 +9,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show SelectableText;
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import '../l10n/l10n_ext.dart';
 import '../theme/app_theme.dart';
-import '../models/models.dart';
 
 /// 状态语义色（亮暗自适应）。
 Color statusColor(BuildContext context, String status) {
@@ -37,6 +37,52 @@ Color borderColor(BuildContext context) => ShadTheme.of(context).colorScheme.bor
 Color cardColor(BuildContext context) => ShadTheme.of(context).colorScheme.card;
 Color pageBg(BuildContext context) => ShadTheme.of(context).colorScheme.background;
 bool isDark(BuildContext context) => ShadTheme.of(context).brightness == Brightness.dark;
+
+/// 密钥脱敏（与后端 maskKey 一致：长度>6 显示 前3…后3，否则 首字符***）。
+String maskKey(String? k) {
+  if (k == null || k.isEmpty) return '—';
+  if (k.length <= 6) return '${k[0]}***';
+  return '${k.substring(0, 3)}…${k.substring(k.length - 3)}';
+}
+
+/// 千分位数字（1234567 → 1,234,567）。
+String formatCount(int n) {
+  final neg = n < 0;
+  final s = n.abs().toString();
+  final parts = <String>[];
+  for (int i = s.length; i > 0; i -= 3) {
+    final start = (i - 3) < 0 ? 0 : (i - 3);
+    parts.insert(0, s.substring(start, i));
+  }
+  return (neg ? '-' : '') + parts.join(',');
+}
+
+/// 紧凑数字（12345 → 1.2万；123456789 → 1.2亿；小数字回退千分位）。
+String formatCompact(num n) {
+  if (n >= 100000000) return '${(n / 100000000).toStringAsFixed(1)}亿';
+  if (n >= 10000) return '${(n / 10000).toStringAsFixed(1)}万';
+  return formatCount(n.round());
+}
+/// 金额格式化（$ 前缀 + 紧凑；null → —，绝对值 <1 保留两位小数）。
+String formatMoney(double? v) {
+  if (v == null) return '—';
+  if (v == 0) return '\$0';
+  if (v.abs() < 1) return '\$${v.toStringAsFixed(2)}';
+  return '\$${formatCompact(v)}';
+}
+
+/// 国家代码（ISO 3166-1 alpha-2）→ 国旗 emoji；无效返回空串。
+String countryFlag(String? code) {
+  if (code == null) return '';
+  final up = code.trim().toUpperCase();
+  if (up.length != 2) return '';
+  final a = up.codeUnitAt(0);
+  final b = up.codeUnitAt(1);
+  const start = 0x41; // 'A'
+  const end = 0x5A; // 'Z'
+  if (a < start || a > end || b < start || b > end) return '';
+  return String.fromCharCodes([0x1F1E6 + (a - start), 0x1F1E6 + (b - start)]);
+}
 
 /// 毛玻璃导航栏（自绘：SafeArea + 背景模糊 + 半透明）。
 class GlassAppBar extends StatelessWidget {
@@ -118,7 +164,7 @@ class StatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            statusLabel(status),
+            context.l10n.statusLabel(status),
             style: TextStyle(
               color: c,
               fontSize: dense ? 11 : 12,
@@ -127,6 +173,29 @@ class StatusBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 小标签胶囊（数据洞察 / 徽标用）。
+class TagChip extends StatelessWidget {
+  const TagChip(this.label, {super.key, this.color});
+
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isDark(context) ? const Color(0xFF1C1C20) : const Color(0xFFF4F4F5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: ShadTheme.of(context).textTheme.small.copyWith(color: color),
       ),
     );
   }
@@ -235,10 +304,11 @@ class UsageBar extends StatelessWidget {
     final p = percent;
     final clamped = p == null ? 0.0 : p.clamp(0, 100).toDouble();
     final over = (p ?? 0) > 100;
-    final danger = (p ?? 0) > 80;
-    final color = over || danger
+    final warning = (p ?? 0) > 80;
+    // >100% 红色 · 80-100% 琥珀(警告) · 其余主色 —— 修复原死分支(amber 永不可达)
+    final color = over
         ? ShadcnColors.dangerFor(context)
-        : (danger ? ShadcnColors.warningFor(context) : schemeColor(context));
+        : (warning ? ShadcnColors.warningFor(context) : schemeColor(context));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -407,7 +477,7 @@ class ErrorBanner extends StatelessWidget {
               onTap: onRetry,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Text('重试',
+                child: Text(context.l10n.commonRetry,
                     style: TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600, color: danger)),
               ),
@@ -510,9 +580,10 @@ Future<bool> showShadcnConfirm(
   BuildContext context, {
   required String title,
   required String message,
-  String confirmText = '确定',
+  String? confirmText,
   bool destructive = false,
 }) async {
+  final l10n = context.l10n;
   return await showCupertinoDialog<bool>(
         context: context,
         builder: (ctx) => CupertinoAlertDialog(
@@ -521,12 +592,12 @@ Future<bool> showShadcnConfirm(
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消'),
+              child: Text(l10n.commonCancel),
             ),
             CupertinoDialogAction(
               isDestructiveAction: destructive,
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text(confirmText),
+              child: Text(confirmText ?? l10n.commonConfirm),
             ),
           ],
         ),

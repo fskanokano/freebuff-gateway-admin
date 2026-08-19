@@ -3,8 +3,10 @@
 library;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show RefreshIndicator, Tooltip;
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import '../l10n/l10n_ext.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -31,7 +33,9 @@ class _ProxiesPageState extends State<ProxiesPage> {
       await action();
       if (success != null && mounted) showShadcnToast(context, success);
     } catch (e) {
-      if (mounted) showShadcnToast(context, '操作失败: $e');
+      if (mounted) {
+        showShadcnToast(context, context.l10n.proxiesOpFailed(e.toString()));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -54,8 +58,8 @@ class _ProxiesPageState extends State<ProxiesPage> {
         showShadcnToast(
             context,
             res == null
-                ? '探测完成'
-                : '${res.name}: ${statusLabel(res.status ?? 'unknown')}'
+                ? context.l10n.proxiesProbeDone
+                : '${res.name}: ${context.l10n.statusLabel(res.status ?? 'unknown')}'
                     '${res.detail != null && res.detail!.isNotEmpty ? ' · ${res.detail}' : ''}');
       }
     });
@@ -67,8 +71,10 @@ class _ProxiesPageState extends State<ProxiesPage> {
     await _run(() async {
       final results = await api.probe();
       final lines =
-          results.map((r) => '${r.name}: ${statusLabel(r.status ?? '?')}').join('\n');
-      if (mounted) showShadcnToast(context, '探测完成\n$lines');
+          results.map((r) => '${r.name}: ${context.l10n.statusLabel(r.status ?? '?')}').join('\n');
+      if (mounted) {
+        showShadcnToast(context, '${context.l10n.proxiesProbeDone}\n$lines');
+      }
     });
   }
 
@@ -80,7 +86,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
     try {
       results = await api.egress();
     } catch (e) {
-      if (mounted) showShadcnToast(context, '出口 IP 探测失败: $e');
+      if (mounted) showShadcnToast(context, context.l10n.proxiesEgressFailed(e.toString()));
       if (mounted) setState(() => _egressLoading = false);
       return;
     }
@@ -102,8 +108,8 @@ class _ProxiesPageState extends State<ProxiesPage> {
       final r = results.isEmpty ? null : results.first;
       if (!mounted) return;
       if (r == null || !r.ok) {
-        showShadcnToast(
-            context, '${p.name} 出口 IP 探测失败${r?.error != null ? ': ${r!.error}' : ''}');
+        showShadcnToast(context,
+            '${p.name} · ${context.l10n.proxiesEgressFailed(r?.error ?? '')}');
       } else {
         final loc = r.location;
         final via = (r.provider != null && r.provider!.isNotEmpty)
@@ -113,7 +119,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
             '${p.name} 出口 IP: ${r.ip}${loc.isNotEmpty ? ' · $loc' : ''}$via');
       }
     } catch (e) {
-      if (mounted) showShadcnToast(context, '出口 IP 探测失败: $e');
+      if (mounted) showShadcnToast(context, context.l10n.proxiesEgressFailed(e.toString()));
     } finally {
       if (mounted) setState(() => _egressLoadingName = null);
     }
@@ -137,7 +143,8 @@ class _ProxiesPageState extends State<ProxiesPage> {
     final api = widget.state.api;
     final key = widget.state.pinStatus?.stickyKey;
     if (api == null || key == null || key.isEmpty) return;
-    await _run(() => api.clearPin(key), success: '已解除常驻');
+    await _run(() => api.clearPin(key),
+        success: context.l10n.settingsPinCleared);
   }
 
   Future<void> _editProxy([ProxyInfo? existing]) async {
@@ -167,28 +174,32 @@ class _ProxiesPageState extends State<ProxiesPage> {
         proxies.add(result);
       }
       await _run(() => api.saveProxies(proxies),
-          success: existing == null ? '已添加代理' : '已保存修改');
+          success: existing == null
+              ? context.l10n.proxiesAdded
+              : context.l10n.proxiesSaved);
     }
   }
 
   Future<void> _deleteProxy(ProxyInfo p) async {
     final api = widget.state.api;
     if (api == null) return;
+    final l10n = context.l10n;
     final ok = await showShadcnConfirm(
       context,
-      title: '删除代理',
-      message: '确定删除代理 "${p.name}" 吗？\n\n删除的是后台运行时配置中的代理列表；若代理来自环境变量，恢复默认会重新出现。',
-      confirmText: '删除',
+      title: l10n.proxiesDeleteTitle,
+      message: l10n.proxiesDeleteMessage(p.name),
+      confirmText: l10n.commonDelete,
       destructive: true,
     );
     if (ok != true) return;
     final cfg = await api.config();
     final proxies = cfg.proxies.where((x) => x.name != p.name).toList();
     if (proxies.isEmpty) {
-      if (mounted) showShadcnToast(context, '至少需要保留一个代理');
+      if (mounted) showShadcnToast(context, l10n.proxiesNeedOne);
       return;
     }
-    await _run(() => api.saveProxies(proxies), success: '已删除 ${p.name}');
+    await _run(() => api.saveProxies(proxies),
+        success: l10n.proxiesDeleted(p.name));
   }
 
   @override
@@ -202,7 +213,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
             return Column(
               children: [
                 GlassAppBar(
-                  title: const Text('代理'),
+                  title: Text(context.l10n.tabProxies),
                   actions: [_navActions(context)],
                 ),
                 const Expanded(
@@ -213,17 +224,22 @@ class _ProxiesPageState extends State<ProxiesPage> {
           return Column(
             children: [
               GlassAppBar(
-                title: const Text('代理'),
+                title: Text(context.l10n.tabProxies),
                 actions: [_navActions(context)],
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                child: RefreshIndicator(
+                  onRefresh: widget.state.refreshNow,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (widget.state.hasError)
-                        ErrorBanner(widget.state.lastError ?? '连接失败',
+                        ErrorBanner(
+                            context.l10n.errorText(widget.state.lastErrorKind,
+                                widget.state.lastError),
                             onRetry: widget.state.refreshNow),
                       _pinnedBanner(context),
                       ...proxies.map((p) => fadeSlideIn(
@@ -232,6 +248,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
                           delayMs: 0)),
                     ],
                   ),
+                ),
                 ),
               ),
             ],
@@ -247,32 +264,41 @@ class _ProxiesPageState extends State<ProxiesPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TapFeedback(
-            onTap: _egressLoading ? null : _probeEgress,
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: _egressLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CupertinoActivityIndicator())
-                  : const Icon(CupertinoIcons.globe, size: 20),
+          Tooltip(
+            message: context.l10n.proxiesEgressTitle,
+            child: TapFeedback(
+              onTap: _egressLoading ? null : _probeEgress,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: _egressLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CupertinoActivityIndicator())
+                    : const Icon(CupertinoIcons.globe, size: 20),
+              ),
             ),
           ),
           const SizedBox(width: 4),
-          TapFeedback(
-            onTap: _busy ? null : _probeAll,
-            child: const Padding(
-              padding: EdgeInsets.all(10),
-              child: Icon(CupertinoIcons.play_circle, size: 20),
+          Tooltip(
+            message: context.l10n.actionProbe,
+            child: TapFeedback(
+              onTap: _busy ? null : _probeAll,
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(CupertinoIcons.play_circle, size: 20),
+              ),
             ),
           ),
           const SizedBox(width: 4),
-          TapFeedback(
-            onTap: _busy ? null : () => _editProxy(),
-            child: const Padding(
-              padding: EdgeInsets.all(10),
-              child: Icon(CupertinoIcons.add, size: 22),
+          Tooltip(
+            message: context.l10n.proxiesAdd,
+            child: TapFeedback(
+              onTap: _busy ? null : () => _editProxy(),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(CupertinoIcons.add, size: 22),
+              ),
             ),
           ),
         ],
@@ -299,7 +325,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '当前常驻代理：$pinned',
+              context.l10n.proxiesPinned(pinned),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -314,7 +340,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
             onTap: (stickyKey == null || stickyKey.isEmpty) ? null : _unpin,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Text('解除',
+              child: Text(context.l10n.proxiesUnpin,
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -421,7 +447,8 @@ class _ProxiesPageState extends State<ProxiesPage> {
               children: [
                 Row(
                   children: [
-                    Text('用量', style: ShadTheme.of(context).textTheme.small),
+                    Text(context.l10n.proxiesUsage,
+                        style: ShadTheme.of(context).textTheme.small),
                     const Spacer(),
                     if (p.score != null)
                       Text('score ${p.score!.toStringAsFixed(0)}',
@@ -433,6 +460,8 @@ class _ProxiesPageState extends State<ProxiesPage> {
               ],
             ),
           ),
+          // 数据洞察（tier / country / mode / risk / 滚动消费）
+          _insightsSection(context, p),
           // 配额
           if (p.quota.isNotEmpty)
             Padding(
@@ -471,22 +500,22 @@ class _ProxiesPageState extends State<ProxiesPage> {
                 Expanded(
                   child: ShadButton.outline(
                     onPressed: _busy ? null : () => _probeOne(p),
-                    child: const Text('探测'),
+                    child: Text(context.l10n.proxiesProbe),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ShadButton.outline(
                     onPressed: _busy ? null : () => _editProxy(p),
-                    child: const Text('编辑'),
+                    child: Text(context.l10n.proxiesEdit),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ShadButton.outline(
                     onPressed: _busy ? null : () => _deleteProxy(p),
-                    child: const Text('删除',
-                        style: TextStyle(color: ShadcnColors.danger)),
+                    child: Text(context.l10n.commonDelete,
+                        style: const TextStyle(color: ShadcnColors.danger)),
                   ),
                 ),
               ],
@@ -499,7 +528,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text('维护模式',
+                  child: Text(context.l10n.proxiesMaintenance,
                       style: ShadTheme.of(context).textTheme.p),
                 ),
                 ShadSwitch(
@@ -512,7 +541,7 @@ class _ProxiesPageState extends State<ProxiesPage> {
           if (p.maint)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-              child: Text('维护中，路由会排除该代理',
+              child: Text(context.l10n.proxiesMaintHint,
                   style: ShadTheme.of(context).textTheme.small),
             ),
         ],
@@ -545,13 +574,18 @@ class _ProxiesPageState extends State<ProxiesPage> {
 
   Widget _timeRows(BuildContext context, ProxyInfo p) {
     final rows = <(String, String)>[
-      if (p.reason.isNotEmpty) ('原因', p.reason),
-      if (p.detail.isNotEmpty) ('详情', p.detail),
-      if (p.cooldownUntil != null) ('冷却至', relativeTime(p.cooldownUntil)),
-      if (p.resetAt != null) ('重置于', relativeTime(p.resetAt)),
-      if (p.nextProbe != null) ('下次探测', relativeTime(p.nextProbe)),
-      if (p.lastOk != null) ('上次成功', relativeTime(p.lastOk)),
-      if (p.lastError != null) ('上次失败', relativeTime(p.lastError)),
+      if (p.reason.isNotEmpty) (context.l10n.proxiesReason, p.reason),
+      if (p.detail.isNotEmpty) (context.l10n.proxiesDetail, p.detail),
+      if (p.cooldownUntil != null)
+        (context.l10n.proxiesCooldown, context.l10n.relativeTime(p.cooldownUntil)),
+      if (p.resetAt != null)
+        (context.l10n.proxiesResetAt, context.l10n.relativeTime(p.resetAt)),
+      if (p.nextProbe != null)
+        (context.l10n.proxiesNextProbe, context.l10n.relativeTime(p.nextProbe)),
+      if (p.lastOk != null)
+        (context.l10n.proxiesLastOk, context.l10n.relativeTime(p.lastOk)),
+      if (p.lastError != null)
+        (context.l10n.proxiesLastFail, context.l10n.relativeTime(p.lastError)),
     ];
     if (rows.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -577,6 +611,48 @@ class _ProxiesPageState extends State<ProxiesPage> {
             .toList(),
       ),
     );
+  }
+
+  /// 数据洞察：tier/country/mode/risk 徽标 + 滚动消费（字段均来自 overview，零额外请求）。
+  Widget _insightsSection(BuildContext context, ProxyInfo p) {
+    final chips = <Widget>[
+      if (p.tier != null && p.tier!.isNotEmpty)
+        TagChip('T${p.tier}', color: schemeColor(context)),
+      if (p.country != null && p.country!.isNotEmpty)
+        TagChip(_countryLabel(p.country!)),
+      if (p.mode != null && p.mode!.isNotEmpty) TagChip(p.mode!),
+      if (p.risk != null && p.risk!.isNotEmpty && p.risk != 'low')
+        TagChip(context.l10n.proxiesRisk(p.risk!), color: ShadcnColors.danger),
+    ];
+    final spend = <String>[
+      if (p.spend24h != null)
+        context.l10n.proxiesSpend24h(context.l10n.money(p.spend24h)),
+      if (p.spendWeek != null)
+        context.l10n.proxiesSpendWeek(context.l10n.money(p.spendWeek)),
+      if (p.spendMonth != null)
+        context.l10n.proxiesSpendMonth(context.l10n.money(p.spendMonth)),
+    ];
+    if (chips.isEmpty && spend.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (chips.isNotEmpty)
+            Wrap(spacing: 6, runSpacing: 4, children: chips),
+          if (chips.isNotEmpty && spend.isNotEmpty) const SizedBox(height: 6),
+          if (spend.isNotEmpty)
+            Text(spend.join('  ·  '),
+                style: ShadTheme.of(context).textTheme.small),
+        ],
+      ),
+    );
+  }
+
+  String _countryLabel(String code) {
+    final flag = countryFlag(code);
+    final up = code.trim().toUpperCase();
+    return flag.isEmpty ? up : '$flag $up';
   }
 
   double? _firstQuotaUsage(ProxyInfo p) {
@@ -631,7 +707,9 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
   @override
   Widget build(BuildContext context) {
     return ShadDialog(
-      title: Text(widget.existing == null ? '添加代理' : '编辑代理 ${widget.existing!.name}'),
+      title: Text(widget.existing == null
+          ? context.l10n.proxiesAdd
+          : context.l10n.proxiesEditTitle(widget.existing!.name)),
       description: const SizedBox(),
       // ignore: sort_child_properties_last
       child: SizedBox(
@@ -642,26 +720,26 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
             const SizedBox(height: 8),
             ShadInput(
               controller: _name,
-              placeholder: Text('名称（可选，自动规范化）'),
+              placeholder: Text(context.l10n.proxiesNamePlaceholder),
             ),
             const SizedBox(height: 10),
             ShadInput(
               controller: _url,
-              placeholder: Text('代理地址（http(s)://…）'),
+              placeholder: Text(context.l10n.proxiesUrlPlaceholder),
               keyboardType: TextInputType.url,
             ),
             const SizedBox(height: 10),
             ShadInput(
               controller: _key,
               placeholder: Text(widget.existing == null
-                  ? '代理 API Key'
-                  : '代理 API Key（留空保持原值）'),
+                  ? context.l10n.proxiesKeyPlaceholder
+                  : context.l10n.proxiesKeyPlaceholderKeep),
               obscureText: true,
             ),
             const SizedBox(height: 10),
             ShadInput(
               controller: _remark,
-              placeholder: Text('备注（可选，如：主线路）'),
+              placeholder: Text(context.l10n.proxiesRemarkPlaceholder),
               maxLength: 200,
               maxLines: 2,
             ),
@@ -671,11 +749,11 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
       actions: [
         ShadButton.outline(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.commonCancel),
         ),
         ShadButton(
           onPressed: _submit,
-          child: const Text('保存'),
+          child: Text(context.l10n.commonSave),
         ),
       ],
     );
@@ -684,13 +762,13 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
   void _submit() {
     final url = _url.text.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      showShadcnToast(context, '地址需以 http(s):// 开头');
+      showShadcnToast(context, context.l10n.proxiesErrUrlScheme);
       return;
     }
     final nameRaw = _name.text.trim();
     if (nameRaw.isNotEmpty &&
         !RegExp(r'^[a-z0-9-]+$').hasMatch(nameRaw.toLowerCase())) {
-      showShadcnToast(context, '名称仅允许小写字母/数字/连字符');
+      showShadcnToast(context, context.l10n.proxiesErrName);
       return;
     }
     final cfg = widget.existing;
@@ -700,7 +778,7 @@ class _ProxyEditDialogState extends State<_ProxyEditDialog> {
     final key =
         _key.text.trim().isEmpty ? widget.currentApiKey : _key.text.trim();
     if (key.isEmpty) {
-      showShadcnToast(context, '新增代理必须填写 Key');
+      showShadcnToast(context, context.l10n.proxiesErrKeyRequired);
       return;
     }
     final remark = _remark.text.trim();
@@ -725,8 +803,8 @@ class _EgressDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ShadDialog(
-      title: const Text('出口 IP 探测'),
-      description: const Text('每个代理的公网出口 IP 与地理位置'),
+      title: Text(context.l10n.proxiesEgressTitle),
+      description: Text(context.l10n.proxiesEgressSubtitle),
       // ignore: sort_child_properties_last
       child: SizedBox(
         width: 380,
@@ -743,7 +821,7 @@ class _EgressDialog extends StatelessWidget {
       actions: [
         ShadButton.outline(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
+          child: Text(context.l10n.commonClose),
         ),
       ],
     );
@@ -795,7 +873,7 @@ class _EgressDialog extends StatelessWidget {
                             .small
                             .copyWith(color: mutedColor(context))),
                 ] else
-                  Text(r.error ?? '探测失败',
+                  Text(r.error ?? context.l10n.codeProbeFailed,
                       style: ShadTheme.of(context)
                           .textTheme
                           .small

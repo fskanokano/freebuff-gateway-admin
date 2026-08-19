@@ -6,8 +6,10 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
-import 'package:flutter/material.dart' show SelectableText;
+import 'package:flutter/material.dart' show RefreshIndicator, SelectableText, Tooltip;
 
+import '../l10n/app_localizations.dart';
+import '../l10n/l10n_ext.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -18,33 +20,6 @@ enum _MainFilter { all, routes, events }
 enum _RouteFilter { all, ok, fail }
 
 enum _TimeRange { all, m5, m30, h1 }
-
-/// 错误码/原因 → 中文。
-const _codeZh = {
-  'rate_limited': '限流',
-  'banned': '账号封禁',
-  'country_blocked': '区域限制',
-  'out_of_credits': '余额不足',
-  'waiting_room': '排队中',
-  'auth_rejected': '上游鉴权拒绝',
-  'invalid_api_key': '密钥无效',
-  'timeout': '超时',
-  'connection_error': '连接失败',
-  'dns_error': 'DNS 解析失败',
-  'probe_failed': '探测失败',
-  'quota_exhausted': '额度耗尽',
-  'locked': '锁定',
-  'unknown': '未知',
-};
-
-/// 后台操作类型 → 中文。
-const _actionZh = {
-  'save_config': '保存配置',
-  'probe': '立即探测',
-  'clear_pin': '解除常驻',
-  'reset_config': '恢复环境变量',
-  'clear_logs': '清空日志',
-};
 
 class LogsPage extends StatefulWidget {
   const LogsPage({super.key, required this.state});
@@ -66,12 +41,8 @@ class _LogsPageState extends State<LogsPage> {
   bool _clearing = false;
 
   static const _eventTypes = [
-    ('status_change', '状态变化'),
-    ('failover', '故障转移'),
-    ('probe_failed', '探测失败'),
-    ('admin_action', '后台操作'),
-    ('maintenance', '维护模式'),
-    ('smoke', '测试请求'),
+    'status_change', 'failover', 'probe_failed',
+    'admin_action', 'maintenance', 'smoke',
   ];
 
   @override
@@ -83,11 +54,12 @@ class _LogsPageState extends State<LogsPage> {
   Future<void> _clear() async {
     final api = widget.state.api;
     if (api == null) return;
+    final l10n = context.l10n;
     final ok = await showShadcnConfirm(
       context,
-      title: '清空日志',
-      message: '将清空路由记录与系统事件（环形缓冲），确定吗？',
-      confirmText: '清空',
+      title: l10n.logsClearTitle,
+      message: l10n.logsClearMessage,
+      confirmText: l10n.logsClear,
       destructive: true,
     );
     if (ok != true) return;
@@ -96,7 +68,7 @@ class _LogsPageState extends State<LogsPage> {
       await api.clearLogs();
       await widget.state.refreshNow();
     } catch (e) {
-      if (mounted) showShadcnToast(context, '清空失败: $e');
+      if (mounted) showShadcnToast(context, l10n.logsClearFailed(e.toString()));
     } finally {
       if (mounted) setState(() => _clearing = false);
     }
@@ -104,19 +76,20 @@ class _LogsPageState extends State<LogsPage> {
 
   List<_LogItem> _filtered() {
     final ov = widget.state.overview;
+    final l10n = context.l10n;
     final now = DateTime.now();
     final items = <_LogItem>[];
     if (_main != _MainFilter.events) {
       for (final r in ov?.routes ?? const <RouteEntry>[]) {
         if (_route == _RouteFilter.ok && !r.ok) continue;
         if (_route == _RouteFilter.fail && r.ok) continue;
-        items.add(_LogItem.route(r));
+        items.add(_LogItem.route(r, l10n));
       }
     }
     if (_main != _MainFilter.routes) {
       for (final e in ov?.events ?? const <EventEntry>[]) {
         if (_eventType != null && e.type != _eventType) continue;
-        items.add(_LogItem.event(e));
+        items.add(_LogItem.event(e, l10n));
       }
     }
     if (_time != _TimeRange.all) {
@@ -149,7 +122,7 @@ class _LogsPageState extends State<LogsPage> {
           if (ov == null && !widget.state.hasError) {
             return Column(
               children: [
-                GlassAppBar(title: const Text('日志')),
+                GlassAppBar(title: Text(context.l10n.tabLogs)),
                 const Expanded(
                     child: Center(child: CupertinoActivityIndicator())),
               ],
@@ -159,29 +132,37 @@ class _LogsPageState extends State<LogsPage> {
           return Column(
             children: [
               GlassAppBar(
-                title: const Text('日志'),
+                title: Text(context.l10n.tabLogs),
                 actions: [
-                  TapFeedback(
-                    onTap: _clearing ? null : _clear,
-                    child: const Padding(
-                      padding: EdgeInsets.all(10),
-                      child: Icon(CupertinoIcons.trash, size: 19),
+                  Tooltip(
+                    message: context.l10n.logsClear,
+                    child: TapFeedback(
+                      onTap: _clearing ? null : _clear,
+                      child: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Icon(CupertinoIcons.trash, size: 19),
+                      ),
                     ),
                   ),
                 ],
               ),
               _filters(context),
               _statsBar(context, items),
+              _insightsCard(context),
               Expanded(
                 child: items.isEmpty
-                    ? const EmptyState('暂无匹配的日志')
-                    : ListView.builder(
+                    ? EmptyState(context.l10n.logsEmpty)
+                    : RefreshIndicator(
+                        onRefresh: widget.state.refreshNow,
+                        child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                         itemCount: items.length,
                         itemBuilder: (context, i) => KeyedSubtree(
                           key: ValueKey(items[i].id),
                           child: _tile(context, items[i]),
                         ),
+                      ),
                       ),
               ),
             ],
@@ -194,6 +175,7 @@ class _LogsPageState extends State<LogsPage> {
   // ─────────────────────────── 筛选区 ───────────────────────────
 
   Widget _filters(BuildContext context) {
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Column(
@@ -201,43 +183,43 @@ class _LogsPageState extends State<LogsPage> {
         children: [
           ShadInput(
             controller: _queryCtrl,
-            placeholder: Text('搜索代理名 / 模型 / 类型 / 内容…'),
+            placeholder: Text(l10n.logsSearchPlaceholder),
             onChanged: (v) => setState(() => _query = v.trim()),
           ),
           const SizedBox(height: 10),
           _pillRow(context, [
-            ShadcnPill('全部', selected: _main == _MainFilter.all,
+            ShadcnPill(l10n.logsAll, selected: _main == _MainFilter.all,
                 onTap: () => setState(() => _main = _MainFilter.all)),
-            ShadcnPill('路由记录', selected: _main == _MainFilter.routes,
+            ShadcnPill(l10n.logsRoutes, selected: _main == _MainFilter.routes,
                 onTap: () => setState(() => _main = _MainFilter.routes)),
-            ShadcnPill('系统事件', selected: _main == _MainFilter.events,
+            ShadcnPill(l10n.logsEvents, selected: _main == _MainFilter.events,
                 onTap: () => setState(() => _main = _MainFilter.events)),
           ]),
           if (_main == _MainFilter.routes)
             _pillRow(context, [
-              ShadcnPill('全部', selected: _route == _RouteFilter.all,
+              ShadcnPill(l10n.logsAll, selected: _route == _RouteFilter.all,
                   onTap: () => setState(() => _route = _RouteFilter.all)),
-              ShadcnPill('✓ 成功', selected: _route == _RouteFilter.ok,
+              ShadcnPill(l10n.logsSuccess, selected: _route == _RouteFilter.ok,
                   onTap: () => setState(() => _route = _RouteFilter.ok)),
-              ShadcnPill('✗ 失败', selected: _route == _RouteFilter.fail,
+              ShadcnPill(l10n.logsFail, selected: _route == _RouteFilter.fail,
                   onTap: () => setState(() => _route = _RouteFilter.fail)),
             ]),
           if (_main == _MainFilter.events)
             _pillRow(context, [
-              ShadcnPill('全部事件', selected: _eventType == null,
+              ShadcnPill(l10n.logsAllEvents, selected: _eventType == null,
                   onTap: () => setState(() => _eventType = null)),
-              for (final (type, label) in _eventTypes)
-                ShadcnPill(label, selected: _eventType == type,
+              for (final type in _eventTypes)
+                ShadcnPill(l10n.eventTypeLabel(type), selected: _eventType == type,
                     onTap: () => setState(() => _eventType = type)),
             ]),
           _pillRow(context, [
-            ShadcnPill('全部时间', selected: _time == _TimeRange.all,
+            ShadcnPill(l10n.logsAllTime, selected: _time == _TimeRange.all,
                 onTap: () => setState(() => _time = _TimeRange.all)),
-            ShadcnPill('近 5 分钟', selected: _time == _TimeRange.m5,
+            ShadcnPill(l10n.logsLast5m, selected: _time == _TimeRange.m5,
                 onTap: () => setState(() => _time = _TimeRange.m5)),
-            ShadcnPill('近 30 分钟', selected: _time == _TimeRange.m30,
+            ShadcnPill(l10n.logsLast30m, selected: _time == _TimeRange.m30,
                 onTap: () => setState(() => _time = _TimeRange.m30)),
-            ShadcnPill('近 1 小时', selected: _time == _TimeRange.h1,
+            ShadcnPill(l10n.logsLast1h, selected: _time == _TimeRange.h1,
                 onTap: () => setState(() => _time = _TimeRange.h1)),
           ]),
         ],
@@ -260,6 +242,7 @@ class _LogsPageState extends State<LogsPage> {
   }
 
   Widget _statsBar(BuildContext context, List<_LogItem> items) {
+    final l10n = context.l10n;
     final routes = items.where((i) => i.isRoute).toList();
     final okCount = routes.where((i) => i.ok).length;
     final failCount = routes.length - okCount;
@@ -270,20 +253,87 @@ class _LogsPageState extends State<LogsPage> {
       padding: const EdgeInsets.fromLTRB(18, 2, 18, 10),
       child: Row(
         children: [
-          Text('共 ${items.length} 条',
+          Text(l10n.logsCount(items.length),
               style: ShadTheme.of(context).textTheme.small),
           const SizedBox(width: 10),
-          Text('路由 $okCount✓/$failCount✗',
+          Text(l10n.logsRouteCount(okCount, failCount),
               style: ShadTheme.of(context).textTheme.small),
           if (avgMs != null) ...[
             const SizedBox(width: 10),
-            Text('平均 ${avgMs}ms',
+            Text(l10n.logsAvgMs(avgMs),
                 style: ShadTheme.of(context).textTheme.small),
           ],
           const Spacer(),
           if (widget.state.lastUpdated != null)
-            Text('更新 ${relativeTime(widget.state.lastUpdated)}',
+            Text(l10n.logsUpdated(l10n.relativeTime(widget.state.lastUpdated)),
                 style: ShadTheme.of(context).textTheme.small),
+        ],
+      ),
+    );
+  }
+
+  /// 聚合洞察：HTTP 状态码 / 失败原因码 / 事件类型 分布（来自原始 overview，不受筛选影响）。
+  Widget _insightsCard(BuildContext context) {
+    final l10n = context.l10n;
+    final ov = widget.state.overview;
+    final routes = ov?.routes ?? const <RouteEntry>[];
+    final events = ov?.events ?? const <EventEntry>[];
+
+    final statusCounts = <int, int>{};
+    for (final r in routes) {
+      if (r.status > 0) statusCounts[r.status] = (statusCounts[r.status] ?? 0) + 1;
+    }
+    final codeCounts = <String, int>{};
+    final typeCounts = <String, int>{};
+    for (final e in events) {
+      final c = e.detail['code'];
+      if (c != null && c.toString().isNotEmpty) {
+        final k = c.toString();
+        codeCounts[k] = (codeCounts[k] ?? 0) + 1;
+      }
+      typeCounts[e.type] = (typeCounts[e.type] ?? 0) + 1;
+    }
+
+    final rows = <Widget>[];
+    if (statusCounts.isNotEmpty) {
+      final s = statusCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      rows.add(_insightRow(context, l10n.logsInsightStatus,
+          s.take(6).map((e) => '${e.key} ×${e.value}').toList()));
+    }
+    if (codeCounts.isNotEmpty) {
+      final s = codeCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      rows.add(_insightRow(context, l10n.logsInsightFailReason,
+          s.take(6).map((e) => '${l10n.codeLabel(e.key)} ×${e.value}').toList()));
+    }
+    if (typeCounts.isNotEmpty) {
+      final s = typeCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      rows.add(_insightRow(context, l10n.logsInsightEventType,
+          s.take(6).map((e) => '${l10n.eventTypeLabel(e.key)} ×${e.value}').toList()));
+    }
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: ShadCard(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: rows),
+      ),
+    );
+  }
+
+  Widget _insightRow(BuildContext context, String label, List<String> chips) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: ShadTheme.of(context)
+                  .textTheme
+                  .small
+                  .copyWith(color: mutedColor(context))),
+          const SizedBox(height: 5),
+          Wrap(spacing: 6, runSpacing: 4, children: [for (final c in chips) TagChip(c)]),
         ],
       ),
     );
@@ -311,119 +361,121 @@ class _LogsPageState extends State<LogsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 18),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: ShadTheme.of(context)
-                        .textTheme
-                        .p
-                        .copyWith(fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(relativeTime(item.t),
-                    style: ShadTheme.of(context).textTheme.small),
-                const SizedBox(width: 4),
-                // 展开箭头: 旋转动画
-                AnimatedRotation(
-                  turns: expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  child: Icon(
-                    CupertinoIcons.chevron_down,
-                    size: 13,
-                    color: mutedColor(context),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(
-              item.subtitle,
-              style: ShadTheme.of(context).textTheme.small,
-              maxLines: expanded ? null : 2,
-              overflow: expanded ? null : TextOverflow.ellipsis,
-            ),
-            // 详情: AnimatedSize 平滑展开/收起
-            ClipRect(
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: expanded
-                    ? Column(
-                        key: ValueKey('detail-${item.id}'),
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 8),
-                          ShadcnDivider(),
-                          const SizedBox(height: 6),
-                          ...item.detailFields.map((f) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 1.5),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 82,
-                          child: Text(f.$1,
-                              style: ShadTheme.of(context).textTheme.small),
-                        ),
-                        Expanded(
-                          child: SelectableText(f.$2,
-                              style: ShadTheme.of(context).textTheme.small),
-                        ),
-                      ],
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 18),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: ShadTheme.of(context)
+                          .textTheme
+                          .p
+                          .copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                          )),
-                        ],
-                      )
-                    : const SizedBox(width: double.infinity),
+                  ),
+                  Text(context.l10n.relativeTime(item.t),
+                      style: ShadTheme.of(context).textTheme.small),
+                  const SizedBox(width: 4),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                      CupertinoIcons.chevron_down,
+                      size: 13,
+                      color: mutedColor(context),
+                    ),
+                  ),
+                ],
               ),
-            ),
+              const SizedBox(height: 3),
+              Text(
+                item.subtitle,
+                style: ShadTheme.of(context).textTheme.small,
+                maxLines: expanded ? null : 2,
+                overflow: expanded ? null : TextOverflow.ellipsis,
+              ),
+              ClipRect(
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: expanded
+                      ? Column(
+                          key: ValueKey('detail-${item.id}'),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 8),
+                            ShadcnDivider(),
+                            const SizedBox(height: 6),
+                            ...item.detailFields.map((f) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 1.5),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 82,
+                                    child: Text(f.$1,
+                                        style: ShadTheme.of(context)
+                                            .textTheme
+                                            .small),
+                                  ),
+                                  Expanded(
+                                    child: SelectableText(f.$2,
+                                        style: ShadTheme.of(context)
+                                            .textTheme
+                                            .small),
+                                  ),
+                                ],
+                              ),
+                            )),
+                          ],
+                        )
+                      : const SizedBox(width: double.infinity),
+                ),
+              ),
             ],
           ),
         ),
       ),
-    ),
-    );
+    ));
   }
 }
 
 /// 日志行统一结构。
 class _LogItem {
-  _LogItem.route(RouteEntry r)
+  _LogItem.route(RouteEntry r, AppLocalizations l10n)
       : id = 'r|${r.t.millisecondsSinceEpoch}|${r.name}|${r.status}|${r.ms}',
         t = r.t,
         isRoute = true,
         ok = r.ok,
         ms = r.ms,
-        title = '路由 → ${r.name} ${r.ok ? '(成功)' : '(失败)'}',
-        subtitle = 'HTTP ${r.status} · 尝试 ${r.attempts} 次 · ${r.ms}ms'
-            '${r.model != null ? ' · ${r.model}' : ''}',
+        title = l10n.logsRouteTitle(
+            r.name, r.ok ? l10n.logsRouteOk : l10n.logsRouteFail),
+        subtitle = l10n.logsHttpAttempts(r.status, r.attempts, r.ms) +
+            (r.model != null ? ' · ${r.model}' : ''),
         detailFields = [
-          ('代理', r.name),
-          ('状态码', '${r.status}'),
-          ('尝试次数', '${r.attempts}'),
-          ('耗时', '${r.ms}ms'),
-          if (r.model != null) ('模型', r.model!),
-          ('结果', r.ok ? '成功' : '失败'),
-          ('时间', _fullTime(r.t)),
+          (l10n.fieldProxy, r.name),
+          (l10n.fieldStatusCode, '${r.status}'),
+          (l10n.fieldAttempts, '${r.attempts}'),
+          (l10n.fieldLatency, '${r.ms}ms'),
+          if (r.model != null) (l10n.fieldModel, r.model!),
+          (l10n.fieldResult, r.ok ? l10n.smokeOk : l10n.smokeFail),
+          (l10n.fieldTime, _fullTime(r.t)),
         ];
 
-  _LogItem.event(EventEntry e)
+  _LogItem.event(EventEntry e, AppLocalizations l10n)
       : id = 'e|${e.t.millisecondsSinceEpoch}|${e.type}|${jsonEncode(e.detail)}',
         t = e.t,
         isRoute = false,
         ok = true,
         ms = 0,
-        title = _eventTitle(e),
-        subtitle = _eventSubtitle(e),
-        detailFields = _eventFields(e);
+        title = _eventTitle(l10n, e),
+        subtitle = _eventSubtitle(l10n, e),
+        detailFields = _eventFields(l10n, e);
 
   final String id;
   final DateTime t;
@@ -443,116 +495,110 @@ class _LogItem {
         '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
   }
 
-  static String _eventTitle(EventEntry e) {
-    const names = {
-      'status_change': '状态变化',
-      'failover': '故障转移',
-      'probe_failed': '探测失败',
-      'admin_action': '后台操作',
-      'maintenance': '维护模式',
-      'smoke': '测试请求',
-    };
-    return names[e.type] ?? e.type;
-  }
+  static String _eventTitle(AppLocalizations l10n, EventEntry e) =>
+      l10n.eventTypeLabel(e.type);
 
-  static String _zh(String? code) => _codeZh[code] ?? (code ?? '');
-
-  static String _eventSubtitle(EventEntry e) {
+  static String _eventSubtitle(AppLocalizations l10n, EventEntry e) {
     final d = e.detail;
     switch (e.type) {
       case 'status_change':
         final name = d['name'] ?? '?';
-        final from = statusLabel('${d['from'] ?? ''}');
-        final to = statusLabel('${d['to'] ?? ''}');
-        final reason = d['reason'];
-        return '$name: $from → $to'
-            '${reason != null && reason.toString().isNotEmpty ? ' · 原因: ${_zh(reason.toString())}' : ''}';
+        final from = l10n.statusLabel('${d['from'] ?? ''}');
+        final to = l10n.statusLabel('${d['to'] ?? ''}');
+        final reason = d['reason'] != null
+            ? ' · ${l10n.proxiesReason}: ${l10n.codeLabel(d['reason'].toString())}'
+            : '';
+        return '$name: $from → $to$reason';
       case 'failover':
         final name = d['name'] ?? '?';
-        final from = statusLabel('${d['from'] ?? ''}');
-        final to = statusLabel('${d['to'] ?? ''}');
-        final code = d['code'];
-        final status = d['status'];
-        return '$name: $from → $to'
-            '${code != null && code.toString().isNotEmpty ? ' · ${_zh(code.toString())}' : ''}'
-            '${status != null ? ' (HTTP $status)' : ''}';
+        final from = l10n.statusLabel('${d['from'] ?? ''}');
+        final to = l10n.statusLabel('${d['to'] ?? ''}');
+        return '$name: $from → $to';
       case 'probe_failed':
         final name = d['name'] ?? '?';
-        final err = d['err'];
-        final errText = err == null ? '' : err.toString().replaceAll('\n', ' ');
-        return '$name 探测失败'
-            '${errText.isNotEmpty ? ' · ${errText.length > 90 ? '${errText.substring(0, 90)}…' : errText}' : ''}';
+        final code = d['code'];
+        final msg = code != null
+            ? l10n.codeLabel(code.toString())
+            : (d['error'] ?? l10n.codeProbeFailed);
+        return '$name: $msg';
       case 'admin_action':
-        final action = _actionZh['${d['action'] ?? ''}'] ?? '${d['action'] ?? '操作'}';
+        final action = d['action'] ?? '';
         final extras = <String>[
-          if (d['name'] != null) '代理 ${d['name']}',
-          if (d['proxies'] != null) '代理 ${d['proxies']} 个',
-          if (d['settings'] != null) '参数 ${d['settings']}',
-          if (d['key'] != null) 'key ${d['key']}',
-          if (d['result'] != null) '结果 ${d['result']}',
+          if (d['name'] != null) '${l10n.fieldProxy} ${d['name']}',
+          if (d['proxies'] != null) l10n.fieldProxiesCount('${d['proxies']}'),
+          if (d['settings'] != null) l10n.fieldParamsCount('${d['settings']}'),
+          if (d['key'] != null) '${l10n.fieldKey} ${d['key']}',
+          if (d['result'] != null) '${l10n.fieldResult} ${d['result']}',
         ];
-        return action + (extras.isEmpty ? '' : ' · ${extras.join(' · ')}');
+        return '${l10n.actionLabel(action)}${extras.isNotEmpty ? ' · ${extras.join(' · ')}' : ''}';
       case 'maintenance':
         final name = d['name'] ?? '?';
         final on = d['on'] == true;
-        return '$name 维护${on ? '已开启' : '已关闭'}';
+        return '$name: ${on ? l10n.fieldEnabled : l10n.fieldDisabled}';
       case 'smoke':
-        final model = d['model'] ?? '?';
-        final proxy = d['proxy'];
         final status = d['status'];
         final ms = d['ms'];
         final ok = d['ok'] == true;
-        return '$model'
-            '${proxy != null ? ' → $proxy' : ''}'
-            ' · HTTP $status'
-            '${ms != null ? ' · ${ms}ms' : ''}'
-            ' · ${ok ? '成功' : '失败'}';
+        final proxy = d['proxy'];
+        final parts = <String>[
+          if (status != null) 'HTTP $status',
+          ok ? l10n.smokeOk : l10n.smokeFail,
+          if (proxy != null) '${l10n.fieldRouteTo} $proxy',
+          if (ms != null) '${ms}ms',
+        ];
+        return parts.join(' · ');
       default:
-        return e.detail.entries.map((kv) => '${kv.key}=${kv.value}').join(' · ');
+        return '$d';
     }
   }
 
-  static List<(String, String)> _eventFields(EventEntry e) {
+  static List<(String, String)> _eventFields(AppLocalizations l10n, EventEntry e) {
     final d = e.detail;
-    final fields = <(String, String)>[
-      ('类型', _eventTitle(e)),
-    ];
+    final fields = <(String, String)>[(l10n.fieldType, _eventTitle(l10n, e))];
     switch (e.type) {
       case 'status_change':
-        fields.add(('代理', '${d['name'] ?? '?'}'));
-        fields.add(('变化',
-            '${statusLabel('${d['from'] ?? ''}')} → ${statusLabel('${d['to'] ?? ''}')}'));
+        fields.add((l10n.fieldProxy, '${d['name'] ?? '?'}'));
+        fields.add((l10n.fieldChange,
+            '${l10n.statusLabel('${d['from'] ?? ''}')} → ${l10n.statusLabel('${d['to'] ?? ''}')}'));
         if (d['reason'] != null) {
-          fields.add(('原因', '${d['reason']} (${_zh(d['reason'].toString())})'));
+          fields.add((l10n.proxiesReason,
+              '${d['reason']} (${l10n.codeLabel(d['reason'].toString())})'));
         }
-        if (d['detail'] != null) fields.add(('详情', '${d['detail']}'));
+        if (d['detail'] != null) fields.add((l10n.proxiesDetail, '${d['detail']}'));
+        break;
       case 'failover':
-        fields.add(('代理', '${d['name'] ?? '?'}'));
-        fields.add(('变化',
-            '${statusLabel('${d['from'] ?? ''}')} → ${statusLabel('${d['to'] ?? ''}')}'));
-        if (d['code'] != null) {
-          fields.add(('错误码', '${d['code']} (${_zh(d['code'].toString())})'));
-        }
-        if (d['status'] != null) fields.add(('HTTP', '${d['status']}'));
+        fields.add((l10n.fieldProxy, '${d['name'] ?? '?'}'));
+        fields.add((l10n.fieldChange,
+            '${l10n.statusLabel('${d['from'] ?? ''}')} → ${l10n.statusLabel('${d['to'] ?? ''}')}'));
+        break;
       case 'probe_failed':
-        fields.add(('代理', '${d['name'] ?? '?'}'));
-        if (d['status'] != null) fields.add(('状态', '${d['status']}'));
-        if (d['err'] != null) fields.add(('错误', '${d['err']}'));
-      case 'admin_action':
-        fields.add(
-            ('操作', '${_actionZh['${d['action'] ?? ''}'] ?? d['action'] ?? ''}'));
-        for (final k in ['name', 'proxies', 'settings', 'result', 'key']) {
-          if (d[k] != null) fields.add((k, '${d[k]}'));
+        fields.add((l10n.fieldProxy, '${d['name'] ?? '?'}'));
+        if (d['code'] != null) {
+          fields.add((l10n.fieldErrorCode, l10n.codeLabel(d['code'].toString())));
         }
+        if (d['error'] != null) fields.add((l10n.fieldError, '${d['error']}'));
+        break;
+      case 'admin_action':
+        fields.add((l10n.fieldAction, l10n.actionLabel(d['action']?.toString())));
+        for (final kv in d.entries) {
+          if (kv.key == 'action') continue;
+          fields.add((kv.key, '${kv.value}'));
+        }
+        break;
       case 'maintenance':
-        fields.add(('代理', '${d['name'] ?? '?'}'));
-        fields.add(('状态', d['on'] == true ? '已开启' : '已关闭'));
+        fields.add((l10n.fieldProxy, '${d['name'] ?? '?'}'));
+        fields.add((l10n.fieldStatus,
+            d['on'] == true ? l10n.fieldEnabled : l10n.fieldDisabled));
+        break;
       case 'smoke':
-        if (d['model'] != null) fields.add(('模型', '${d['model']}'));
-        if (d['proxy'] != null) fields.add(('路由到', '${d['proxy']}'));
+        if (d['model'] != null) fields.add((l10n.fieldModel, '${d['model']}'));
+        if (d['proxy'] != null) fields.add((l10n.fieldRouteTo, '${d['proxy']}'));
         if (d['status'] != null) fields.add(('HTTP', '${d['status']}'));
-        if (d['ms'] != null) fields.add(('耗时', '${d['ms']}ms'));
-        if (d['ok'] != null) fields.add(('结果', d['ok'] == true ? '成功' : '失败'));
+        if (d['ms'] != null) fields.add((l10n.fieldLatency, '${d['ms']}ms'));
+        if (d['ok'] != null) {
+          fields.add((l10n.fieldResult, d['ok'] == true ? l10n.smokeOk : l10n.smokeFail));
+        }
+        break;
       default:
         for (final kv in d.entries) {
           fields.add((kv.key, '${kv.value}'));
@@ -562,7 +608,7 @@ class _LogItem {
     for (final kv in d.entries) {
       if (!covered.contains(kv.key)) fields.add((kv.key, '${kv.value}'));
     }
-    fields.add(('时间', _fullTime(e.t)));
+    fields.add((l10n.fieldTime, _fullTime(e.t)));
     return fields;
   }
 }

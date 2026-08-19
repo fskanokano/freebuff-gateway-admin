@@ -1,0 +1,502 @@
+{
+  "@@locale": "zh",
+  "commonCancel": "取消",
+  "commonConfirm": "确定",
+  "commonSave": "保存",
+  "commonDelete": "删除",
+  "commonImport": "导入",
+  "commonClose": "关闭",
+  "commonRetry": "重试",
+  "commonUnconfigured": "未配置",
+  "commonNone": "无",
+  "statusOk": "正常",
+  "statusDepleted": "额度耗尽",
+  "statusDown": "故障",
+  "statusBadConfig": "配置错误",
+  "statusMaint": "维护中",
+  "relJustNow": "刚刚",
+  "relSecondsAgo": "秒前",
+  "relMinutesAgo": "分钟前",
+  "relHoursAgo": "小时前",
+  "unitWan": "万",
+  "unitYi": "亿",
+  "unitK": "K",
+  "unitM": "M",
+  "unitB": "B",
+  "connectTitle": "FreeBuff 网关管理",
+  "connectSubtitle": "连接你的 freebuff-proxy-gateway 实例",
+  "connectUrlPlaceholder": "https://gateway.example.workers.dev",
+  "connectKeyPlaceholder": "ADMIN_KEY 或 API_KEY",
+  "connectKeyHint": "密钥仅保存在本机，用于请求 /admin/api/* 接口",
+  "connectButton": "连接并验证",
+  "connectErrUrlEmpty": "请输入网关地址",
+  "connectErrUrlScheme": "需以 http:// 或 https:// 开头",
+  "connectErrKeyEmpty": "请输入密钥",
+  "tabDashboard": "仪表盘",
+  "tabAnalytics": "分析",
+  "tabProxies": "代理",
+  "tabLogs": "日志",
+  "tabSmoke": "测试",
+  "tabSettings": "设置",
+  "overviewProxyStatus": "代理状态",
+  "overviewRecentRoutes": "最近路由",
+  "overviewProxyHealth": "代理健康",
+  "overviewWaiting": "等待数据…",
+  "overviewConnFailed": "连接失败",
+  "overviewUpdatedAt": "更新于 {time} · 每 5s 轮询",
+  "@overviewUpdatedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "overviewTotalProxies": "代理总数",
+  "overviewOk": "正常",
+  "overviewDepleted": "额度耗尽",
+  "overviewDown": "故障",
+  "overviewReqOk": "成功请求",
+  "overviewReqFail": "失败请求",
+  "overviewSubConfigured": "已配置",
+  "overviewSubAvailable": "可用",
+  "overviewSubWaitReset": "等待重置",
+  "overviewSubInclBadCfg": "含配置错误",
+  "overviewSubCumulative": "累计",
+  "overviewNoRoutes": "暂无路由记录 — 发一条聊天请求后这里会显示路由事实。",
+  "overviewNoProxies": "暂无代理",
+  "proxiesPinned": "当前常驻代理：{name}",
+  "@proxiesPinned": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "proxiesUnpin": "解除",
+  "proxiesProbe": "探测",
+  "proxiesEdit": "编辑",
+  "proxiesMaintenance": "维护模式",
+  "proxiesMaintHint": "维护中，路由会排除该代理",
+  "proxiesUsage": "用量",
+  "proxiesReason": "原因",
+  "proxiesDetail": "详情",
+  "proxiesCooldown": "冷却至",
+  "proxiesResetAt": "重置于",
+  "proxiesNextProbe": "下次探测",
+  "proxiesLastOk": "上次成功",
+  "proxiesLastFail": "上次失败",
+  "proxiesRisk": "风险 {risk}",
+  "@proxiesRisk": {
+    "placeholders": {
+      "risk": {
+        "type": "String"
+      }
+    }
+  },
+  "proxiesSpend24h": "24h {v}",
+  "proxiesSpendWeek": "周 {v}",
+  "proxiesSpendMonth": "月 {v}",
+  "@proxiesSpend24h": {
+    "placeholders": {
+      "v": {
+        "type": "String"
+      }
+    }
+  },
+  "@proxiesSpendWeek": {
+    "placeholders": {
+      "v": {
+        "type": "String"
+      }
+    }
+  },
+  "@proxiesSpendMonth": {
+    "placeholders": {
+      "v": {
+        "type": "String"
+      }
+    }
+  },
+  "proxiesAdd": "添加代理",
+  "proxiesEditTitle": "编辑代理 {name}",
+  "@proxiesEditTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "proxiesNamePlaceholder": "名称（可选，自动规范化）",
+  "proxiesUrlPlaceholder": "代理地址（http(s)://…）",
+  "proxiesKeyPlaceholder": "代理 API Key",
+  "proxiesKeyPlaceholderKeep": "代理 API Key（留空保持原值）",
+  "proxiesRemarkPlaceholder": "备注（可选，如：主线路）",
+  "proxiesErrUrlScheme": "地址需以 http(s):// 开头",
+  "proxiesErrName": "名称仅允许小写字母/数字/连字符",
+  "proxiesErrKeyRequired": "新增代理必须填写 Key",
+  "proxiesOpFailed": "操作失败: {err}",
+  "@proxiesOpFailed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "proxiesProbeDone": "探测完成",
+  "proxiesAdded": "已添加代理",
+  "proxiesSaved": "已保存修改",
+  "proxiesDeleted": "已删除 {name}",
+  "@proxiesDeleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "proxiesNeedOne": "至少需要保留一个代理",
+  "proxiesDeleteTitle": "删除代理",
+  "proxiesDeleteMessage": "确定删除代理 \"{name}\" 吗？\n\n删除的是后台运行时配置中的代理列表；若代理来自环境变量，恢复默认会重新出现。",
+  "@proxiesDeleteMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "proxiesEgressTitle": "出口 IP 探测",
+  "proxiesEgressSubtitle": "每个代理的公网出口 IP 与地理位置",
+  "proxiesEgressFailed": "出口 IP 探测失败: {err}",
+  "@proxiesEgressFailed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "logsClear": "清空",
+  "logsSearchPlaceholder": "搜索代理名 / 模型 / 类型 / 内容…",
+  "logsAll": "全部",
+  "logsRoutes": "路由记录",
+  "logsEvents": "系统事件",
+  "logsSuccess": "✓ 成功",
+  "logsFail": "✗ 失败",
+  "logsAllEvents": "全部事件",
+  "logsAllTime": "全部时间",
+  "logsLast5m": "近 5 分钟",
+  "logsLast30m": "近 30 分钟",
+  "logsLast1h": "近 1 小时",
+  "logsCount": "共 {count} 条",
+  "@logsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logsRouteCount": "路由 {ok}✓/{fail}✗",
+  "@logsRouteCount": {
+    "placeholders": {
+      "ok": {
+        "type": "int"
+      },
+      "fail": {
+        "type": "int"
+      }
+    }
+  },
+  "logsAvgMs": "平均 {ms}ms",
+  "@logsAvgMs": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "logsUpdated": "更新 {time}",
+  "@logsUpdated": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "logsInsightStatus": "状态码",
+  "logsInsightFailReason": "失败原因",
+  "logsInsightEventType": "事件类型",
+  "logsEventStatusChange": "状态变化",
+  "logsEventFailover": "故障转移",
+  "logsEventProbeFailed": "探测失败",
+  "logsEventAdminAction": "后台操作",
+  "logsEventMaintenance": "维护模式",
+  "logsEventSmoke": "测试请求",
+  "logsEmpty": "暂无匹配的日志",
+  "logsClearTitle": "清空日志",
+  "logsClearMessage": "将清空路由记录与系统事件（环形缓冲），确定吗？",
+  "logsClearFailed": "清空失败: {err}",
+  "@logsClearFailed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "logsRouteTitle": "路由 → {name} {result}",
+  "@logsRouteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "result": {
+        "type": "String"
+      }
+    }
+  },
+  "logsRouteOk": "(成功)",
+  "logsRouteFail": "(失败)",
+  "logsHttpAttempts": "HTTP {status} · 尝试 {attempts} 次 · {ms}ms",
+  "@logsHttpAttempts": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      },
+      "attempts": {
+        "type": "int"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "codeRateLimited": "限流",
+  "codeBanned": "账号封禁",
+  "codeCountryBlocked": "区域限制",
+  "codeOutOfCredits": "余额不足",
+  "codeWaitingRoom": "排队中",
+  "codeAuthRejected": "上游鉴权拒绝",
+  "codeInvalidApiKey": "密钥无效",
+  "codeTimeout": "超时",
+  "codeConnectionError": "连接失败",
+  "codeDnsError": "DNS 解析失败",
+  "codeProbeFailed": "探测失败",
+  "codeQuotaExhausted": "额度耗尽",
+  "codeLocked": "锁定",
+  "codeUnknown": "未知",
+  "actionSaveConfig": "保存配置",
+  "actionProbe": "立即探测",
+  "actionClearPin": "解除常驻",
+  "actionResetConfig": "恢复环境变量",
+  "actionClearLogs": "清空日志",
+  "smokeModelLoadFailed": "模型列表拉取失败（可手动输入模型名）: {err}",
+  "@smokeModelLoadFailed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "smokeCustomModel": "或手动输入模型名（如 freebuff-1）",
+  "smokePrompt": "测试提示词",
+  "smokeRun": "发送测试请求",
+  "smokeResult": "本次结果",
+  "smokeHistory": "历史记录",
+  "smokeSelectModel": "选择模型",
+  "smokeLoadingModels": "加载模型…",
+  "smokeNoModels": "无可用模型（可手动输入）",
+  "smokeOk": "成功",
+  "smokeFail": "失败",
+  "smokeHttpResult": "HTTP {status} {result} · 路由到 {proxy} · 尝试 {attempts} 次 · {ms}ms",
+  "@smokeHttpResult": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      },
+      "result": {
+        "type": "String"
+      },
+      "proxy": {
+        "type": "String"
+      },
+      "attempts": {
+        "type": "int"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsSectionConn": "连接",
+  "settingsGatewayUrl": "网关地址",
+  "settingsAdminKey": "管理员密钥",
+  "settingsPolling": "轮询状态",
+  "settingsPollingRunning": "每 5s 刷新",
+  "settingsPollingStopped": "未运行",
+  "settingsEditConn": "修改连接",
+  "settingsLogout": "登出",
+  "settingsSectionPin": "常驻代理",
+  "settingsCurrentPin": "当前常驻",
+  "settingsStickyKey": "Sticky Key",
+  "settingsPinMode": "Pin 模式",
+  "settingsClearPin": "解除当前会话常驻",
+  "settingsSectionRuntime": "运行时配置",
+  "settingsCfgUnreadable": "无法读取配置（检查连接或密钥）",
+  "settingsProxyCount": "代理数量",
+  "settingsProbeMode": "探测模式",
+  "settingsSource": "来源",
+  "settingsSourceRuntime": "后台运行时配置",
+  "settingsSourceMixed": "环境变量 + 运行时参数",
+  "settingsSourceEnv": "环境变量",
+  "settingsClientKey": "客户端 Key",
+  "settingsAdminAuth": "管理鉴权",
+  "settingsReuseApiKey": "复用 API_KEY",
+  "settingsAdminKeyMasked": "管理 Key",
+  "settingsProxyKey": "代理 Key",
+  "settingsRuntimeErr": "运行时代理异常",
+  "settingsEditParams": "编辑参数",
+  "settingsResetEnv": "恢复环境变量",
+  "settingsSectionAppearance": "外观",
+  "settingsTheme": "主题",
+  "settingsThemeSystem": "系统",
+  "settingsThemeLight": "亮",
+  "settingsThemeDark": "暗",
+  "settingsSectionBackup": "备份与恢复",
+  "settingsExport": "导出配置（复制到剪贴板）",
+  "settingsImport": "导入配置（粘贴 JSON）",
+  "settingsSectionAbout": "关于",
+  "settingsApp": "应用",
+  "settingsVersion": "版本",
+  "settingsBackend": "后端",
+  "settingsApi": "接口",
+  "settingsConnUpdated": "连接已更新",
+  "settingsParamsSaved": "参数已保存并生效",
+  "settingsResetTitle": "恢复环境变量配置",
+  "settingsResetMessage": "清除后台保存的运行时配置（代理列表与参数），恢复为部署时的环境变量。确定吗？",
+  "settingsResetConfirm": "恢复",
+  "settingsResetDone": "已恢复环境变量配置",
+  "settingsPinCleared": "已解除常驻钉住",
+  "settingsExportDone": "配置已复制到剪贴板（含明文密钥，切勿外传）",
+  "settingsExportFailed": "导出失败: {err}",
+  "@settingsExportFailed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsImportTitle": "导入配置",
+  "settingsImportMessage": "将覆盖当前代理列表与运行参数，导入内容可能包含明文密钥。确定继续吗？",
+  "settingsImportFailed": "导入失败: {err}",
+  "@settingsImportFailed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsImportDone": "导入成功",
+  "settingsBadJson": "备份必须是 JSON 对象",
+  "settingsEditConnTitle": "修改连接",
+  "settingsUrlKeyEmpty": "地址与密钥不能为空",
+  "settingsImportDesc": "粘贴备份 JSON（含 version / proxies / settings 字段）",
+  "settingsImportPlaceholder": "version: 1, proxies: [...]",
+  "settingsImportPasteFirst": "请先粘贴备份 JSON",
+  "settingsEditParamsTitle": "编辑运行参数",
+  "settingsPinTtl": "Pin 有效期（秒, ≥60）",
+  "settingsStateTtl": "状态 TTL（秒, ≥60）",
+  "settingsDepletedProbe": "耗尽重探测间隔（秒, ≥60）",
+  "settingsDownProbe": "故障重探测间隔（秒, ≥30）",
+  "settingsProbeTimeout": "探测超时（毫秒, ≥500）",
+  "settingsChatTimeout": "转发超时（毫秒, ≥1000）",
+  "settingsMaxAttempts": "最大尝试次数（1-6）",
+  "settingsInput": "请输入",
+  "settingsPinModeClient": "client — 按网关 Key 钉住",
+  "settingsPinModeHeader": "header — 按 X-Sticky-Id 钉住",
+  "settingsPinModeOff": "off — 关闭钉住",
+  "settingsProbeSmart": "smart — 智能懒探测",
+  "settingsProbeScan": "scan — 周期扫描",
+  "settingsErrPinTtl": "pinTtl 必须 ≥ 60",
+  "settingsErrStateTtl": "stateTtl 必须 ≥ 60",
+  "settingsErrDepletedProbe": "depletedProbe 必须 ≥ 60",
+  "settingsErrDownProbe": "downProbe 必须 ≥ 30",
+  "settingsErrProbeTimeout": "probeTimeout 必须 ≥ 500",
+  "settingsErrChatTimeout": "chatTimeout 必须 ≥ 1000",
+  "settingsErrMaxAttempts": "maxAttempts 必须在 1-6",
+  "analyticsSpendByProxy": "消费（按代理）",
+  "analyticsUsage": "额度用量",
+  "analyticsTrend": "请求趋势",
+  "analyticsModels": "模型可用性",
+  "analyticsNoSpend": "暂无消费数据",
+  "analyticsNoProxies": "暂无代理",
+  "analyticsCollecting": "收集数据中，稍后可见",
+  "analyticsNoModels": "无模型数据（可点刷新重试）",
+  "analyticsSpend24h": "滚动 24h 消费",
+  "analyticsSpendWeek": "本周消费",
+  "analyticsSpendMonth": "本月消费",
+  "analyticsWindow24h": "24h",
+  "analyticsWindowWeek": "周",
+  "analyticsWindowMonth": "月",
+  "analyticsSuccess": "成功",
+  "analyticsFail": "失败",
+  "analyticsAvgLatency": "平均延迟 {ms} ms",
+  "@analyticsAvgLatency": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "analyticsModelOk": "ok",
+  "analyticsModelDepleted": "耗尽",
+  "analyticsModelDown": "故障",
+  "err401": "密钥无效或已过期（401）",
+  "errConnFailed": "连接失败: {err}",
+  "@errConnFailed": {
+    "placeholders": {
+      "err": {
+        "type": "String"
+      }
+    }
+  },
+  "fieldProxy": "代理",
+  "fieldStatus": "状态",
+  "fieldStatusCode": "状态码",
+  "fieldAttempts": "尝试次数",
+  "fieldLatency": "耗时",
+  "fieldModel": "模型",
+  "fieldResult": "结果",
+  "fieldTime": "时间",
+  "fieldType": "类型",
+  "fieldChange": "变化",
+  "fieldErrorCode": "错误码",
+  "fieldError": "错误",
+  "fieldAction": "操作",
+  "fieldRouteTo": "路由到",
+  "fieldEnabled": "已开启",
+  "fieldDisabled": "已关闭",
+  "fieldKey": "key",
+  "fieldMaintenance": "维护",
+  "fieldProxiesCount": "代理 {n} 个",
+  "@fieldProxiesCount": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "fieldParamsCount": "参数 {n}",
+  "@fieldParamsCount": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "smokeAttempts": "尝试 {n} 次",
+  "@smokeAttempts": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "commonRefresh": "刷新"
+}

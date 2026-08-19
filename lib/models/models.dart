@@ -74,6 +74,11 @@ class ProxyInfo {
     this.spendLimit,
     this.spendDay,
     this.spendLimited,
+    this.spend24h,
+    this.spendWeek,
+    this.spendMonth,
+    this.tier,
+    this.country,
     this.mode,
     this.bridgeTokens,
     this.risk,
@@ -106,6 +111,13 @@ class ProxyInfo {
   final double? spendLimit;
   final double? spendDay;
   final bool? spendLimited;
+  /// 滚动 24h 消费 / 太平洋周桶 / 太平洋月桶（来自 overview proxies[]，观测用）。
+  final double? spend24h;
+  final double? spendWeek;
+  final double? spendMonth;
+  /// 上游访问档位 / 出口国家（观测用）。
+  final String? tier;
+  final String? country;
   final String? mode;
   final int? bridgeTokens;
   final String? risk;
@@ -140,6 +152,11 @@ class ProxyInfo {
       spendLimit: _asNum(j['spend_limit']),
       spendDay: _asNum(j['spend_day']),
       spendLimited: j['spend_limited'] == true,
+      spend24h: _asNum(j['spend_24h']),
+      spendWeek: _asNum(j['spend_week']),
+      spendMonth: _asNum(j['spend_month']),
+      tier: _asStr(j['tier']),
+      country: _asStr(j['country']),
       mode: _asStr(j['mode']),
       bridgeTokens: _asInt(j['bridge_tokens']),
       risk: _asStr(j['risk']),
@@ -445,6 +462,20 @@ class GatewayConfig {
       runtimeError: _asStr(c['runtime_error']),
     );
   }
+
+  /// 可保存字段的完整往返（proxies + settings；掩码/运行时来源等只读字段不入此图）。
+  Map<String, dynamic> toJson() => {
+        'proxies': proxies.map((p) => p.toJson()).toList(),
+        'pin_mode': pinMode,
+        'probe_mode': probeMode,
+        'pin_ttl': pinTtl,
+        'state_ttl': stateTtl,
+        'depleted_probe': depletedProbe,
+        'down_probe': downProbe,
+        'probe_timeout': probeTimeout,
+        'chat_timeout': chatTimeout,
+        'max_attempts': maxAttempts,
+      };
 }
 
 /// 代理配置项（config.proxies / 编辑表单用）。
@@ -552,33 +583,19 @@ DateTime? _asDt(dynamic v) {
   return null;
 }
 
-/// 相对时间描述（"刚刚 / N 秒前 / N 分钟前 / HH:mm"）。
-String relativeTime(DateTime? t) {
-  if (t == null) return '—';
-  final diff = DateTime.now().difference(t);
-  if (diff.inSeconds < 5) return '刚刚';
-  if (diff.inSeconds < 60) return '${diff.inSeconds} 秒前';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} 分钟前';
-  if (diff.inHours < 24) return '${diff.inHours} 小时前';
-  final h = t.hour.toString().padLeft(2, '0');
-  final m = t.minute.toString().padLeft(2, '0');
-  return '${t.month}/${t.day} $h:$m';
+/// 轮询历史快照（客户端环形缓冲，供分析页趋势图）。
+class HistoryPoint {
+  HistoryPoint({
+    required this.t,
+    required this.requestsOk,
+    required this.requestsFail,
+    this.avgMs,
+  });
+
+  final DateTime t;
+  final int requestsOk;
+  final int requestsFail;
+  final double? avgMs;
 }
 
-/// 代理状态的中文标签与颜色语义。
-String statusLabel(String status) {
-  switch (status) {
-    case 'ok':
-      return '正常';
-    case 'depleted':
-      return '额度耗尽';
-    case 'down':
-      return '故障';
-    case 'bad_config':
-      return '配置错误';
-    case 'maint':
-      return '维护中';
-    default:
-      return status;
-  }
-}
+

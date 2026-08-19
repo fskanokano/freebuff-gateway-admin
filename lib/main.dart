@@ -7,8 +7,9 @@
 library;
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+
+import 'l10n/app_localizations.dart';
 
 import 'pages/connect_page.dart';
 import 'pages/shell_page.dart';
@@ -112,13 +113,11 @@ class _FreeBuffAppState extends State<FreeBuffApp> {
           themeMode: _state.themeMode,
           theme: _buildTheme(Brightness.light),
           darkTheme: _buildTheme(Brightness.dark),
-          localizationsDelegates: const [
+          localizationsDelegates: [
+            ...AppLocalizations.localizationsDelegates,
             GlobalShadLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
           ],
-          supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+          supportedLocales: AppLocalizations.supportedLocales,
           onGenerateRoute: (settings) {
             switch (settings.name) {
               case '/shell':

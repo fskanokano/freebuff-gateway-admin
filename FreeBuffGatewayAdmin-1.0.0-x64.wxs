@@ -1,0 +1,151 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="{176971CB-D28C-4251-9BA3-CFD24699DB4B}" Codepage="1252" Language="1033" Manufacturer="dev.freebuff" Name="FreeBuff Gateway Admin" UpgradeCode="{8F2E7C5D-1A34-4B6E-9C8D-2F1E0D9C8B7A}" Version="1.0.0">
+        <Package Comments="This installer database contains the logic and data required to install FreeBuff Gateway Admin." Compressed="yes" Description="FreeBuff Proxy Gateway Admin" InstallerVersion="500" Languages="1033" Manufacturer="dev.freebuff" Platform="x64" />
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="DesktopFolder">
+                <Component Id="CmpDesktopShortcut" Guid="{708ECD8A-E777-5188-AF18-51FAD7EA5D7C}" Win64="yes">
+                    <RegistryValue Id="regC53DC4CAA8F3446C46F2AF65E5E1426E" Root="HKCU" Key="Software\dev.freebuff\FreeBuff Gateway Admin" Name="desktop" Value="1" Type="integer" KeyPath="yes" />
+                    <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="FreeBuff Gateway Admin" ShortName="fbm5jcil" Description="FreeBuff Proxy Gateway Admin" Icon="AppIcon" WorkingDirectory="INSTALLFOLDER" Advertise="yes" />
+                </Component>
+            </Directory>
+            <Directory Id="ProgramFiles64Folder">
+                <Directory Id="INSTALLFOLDER" Name="FreeBuff Gateway Admin" ShortName="yqkghibl">
+                    <Component Id="cmp2CDA999E920E73A62806C4A5E0ABBF64" Guid="{6B72014A-7243-4572-8094-28113541B141}" Win64="yes">
+                        <File Id="filDC1777BF54418B211620D84241FD7008" Name="dartjni.dll" KeyPath="yes" DiskId="1" Source="SourceDir\File\filDC1777BF54418B211620D84241FD7008" />
+                    </Component>
+                    <Component Id="cmpDC22F85144003CB2F05080B8CF79FC46" Guid="{BC4E9DB9-34A0-4DCD-AFF5-09B137DE435A}" Win64="yes">
+                        <File Id="fil230F9A11CF93D3D1A94FAA7A9D69118F" Name="flutter_windows.dll" KeyPath="yes" ShortName="nhvuq5jh.dll" DiskId="1" Source="SourceDir\File\fil230F9A11CF93D3D1A94FAA7A9D69118F" />
+                    </Component>
+                    <Component Id="cmp3BB0D51B25391038F81AEDCB2F949949" Guid="{E1F0C59A-70D8-4381-B102-A2E0237321B6}" Win64="yes">
+                        <File Id="fil5E36CFF34ACD69FF09ADFDBDFAB43CB7" Name="gateway_admin.exe" KeyPath="yes" ShortName="bmskw9bp.exe" DiskId="1" Source="SourceDir\File\fil5E36CFF34ACD69FF09ADFDBDFAB43CB7" />
+                    </Component>
+                    <Directory Id="dir76A8B56EDC1C4DD3CB4177F3704BC91E" Name="data">
+                        <Component Id="cmpCF83D7D65587D05A151D1E25702E167F" Guid="{73F8EB3D-F7EF-431B-AD03-340D7FE4DDDE}" Win64="yes">
+                            <File Id="filC8D6740BEA75F19BA5204B613C03D8A8" Name="app.so" KeyPath="yes" DiskId="1" Source="SourceDir\File\filC8D6740BEA75F19BA5204B613C03D8A8" />
+                        </Component>
+                        <Component Id="cmp0E0DCB81807E433F9DBCEB0D089B25B5" Guid="{0A26FEA1-CE41-431F-AC85-162D1D0E4027}" Win64="yes">
+                            <File Id="filFB2ED5EBC1081127146486443055DB0D" Name="icudtl.dat" KeyPath="yes" DiskId="1" Source="SourceDir\File\filFB2ED5EBC1081127146486443055DB0D" />
+                        </Component>
+                        <Directory Id="dir4311D903D70E55164A03E9E9374AC9B0" Name="flutter_assets" ShortName="wtqxef1b">
+                            <Component Id="cmp362972CB336FCADAB6FAD4E58ABB50C0" Guid="{06B68E2E-E3AC-40B5-A7A9-734DCA638C8B}" Win64="yes">
+                                <File Id="filF34A97E96DF56DC7F9FA1F571A635270" Name="AssetManifest.bin" KeyPath="yes" ShortName="x4defw5x.bin" DiskId="1" Source="SourceDir\File\filF34A97E96DF56DC7F9FA1F571A635270" />
+                            </Component>
+                            <Component Id="cmp7A9B0136F23F84A4A09D4D0E28D8636B" Guid="{301D3147-CC78-4CB5-9EC1-07E1B9C9C7C3}" Win64="yes">
+                                <File Id="fil130B1805FDD25A50E354B5ADEEAC89F4" Name="FontManifest.json" KeyPath="yes" ShortName="ajtl3xle.jso" DiskId="1" Source="SourceDir\File\fil130B1805FDD25A50E354B5ADEEAC89F4" />
+                            </Component>
+                            <Component Id="cmp90671292812F4FFA17B66812D7B02F23" Guid="{B81C3748-C17A-4F83-9EDA-012F05B793D8}" Win64="yes">
+                                <File Id="fil7BB5C7A3A762FED9EC3F844577DD0A9E" Name="NativeAssetsManifest.json" KeyPath="yes" ShortName="3dgyofue.jso" DiskId="1" Source="SourceDir\File\fil7BB5C7A3A762FED9EC3F844577DD0A9E" />
+                            </Component>
+                            <Component Id="cmpB22BCD9EFB853D38668ABE777CBF404C" Guid="{99D91D95-8E07-4EB9-AFB2-DD041B2ECC07}" Win64="yes">
+                                <File Id="fil95F1B70B711016C2E2A74411F6B41801" Name="NOTICES.Z" KeyPath="yes" DiskId="1" Source="SourceDir\File\fil95F1B70B711016C2E2A74411F6B41801" />
+                            </Component>
+                            <Directory Id="dirE2A82CA30E4E1381D520C8FF40996653" Name="fonts">
+                                <Component Id="cmp9475753282C5250DEC233DF924257EDD" Guid="{FDFDE3FD-640E-4A74-B71E-148EA6D27801}" Win64="yes">
+                                    <File Id="fil95709FE501C331265C6CAAD00C2EA783" Name="MaterialIcons-Regular.otf" KeyPath="yes" ShortName="szbsg9uj.otf" DiskId="1" Source="SourceDir\File\fil95709FE501C331265C6CAAD00C2EA783" />
+                                </Component>
+                            </Directory>
+                            <Directory Id="dir5C01D37FD138B424B270832E735CB541" Name="shaders">
+                                <Component Id="cmpB754D63122F49081C0DAAE0074FBD9C1" Guid="{E84070AE-649E-4969-9C40-E1205DF0BFA5}" Win64="yes">
+                                    <File Id="filFA5374F8D6DDBC810796AB1AB906FB74" Name="ink_sparkle.frag" KeyPath="yes" ShortName="9ay8_3mi.fra" DiskId="1" Source="SourceDir\File\filFA5374F8D6DDBC810796AB1AB906FB74" />
+                                </Component>
+                                <Component Id="cmp14E84BBADE26D929C9F8A72C4CFCDFF1" Guid="{489378E5-2393-4522-88BA-802A9CCAD021}" Win64="yes">
+                                    <File Id="fil2CA73DA06B1638CA75CBFC6099280030" Name="stretch_effect.frag" KeyPath="yes" ShortName="aoiiijzh.fra" DiskId="1" Source="SourceDir\File\fil2CA73DA06B1638CA75CBFC6099280030" />
+                                </Component>
+                            </Directory>
+                            <Directory Id="dirE3A5CD763BAF580FDB3696619F614D3F" Name="packages">
+                                <Directory Id="dir5FF583AEA68E18714B78C24666F2A264" Name="cupertino_icons" ShortName="2bk2rch1">
+                                    <Directory Id="dir3FA823D26185B1B6457D4DCE2A77C372" Name="assets">
+                                        <Component Id="cmp995EB1479D86208A86E88112F9873FE0" Guid="{EB77E9EC-2D50-4692-B601-B9E03A0B99E0}" Win64="yes">
+                                            <File Id="fil7EC168CAE9512344DB7F6000958E43CF" Name="CupertinoIcons.ttf" KeyPath="yes" ShortName="dvpkkzes.ttf" DiskId="1" Source="SourceDir\File\fil7EC168CAE9512344DB7F6000958E43CF" />
+                                        </Component>
+                                    </Directory>
+                                </Directory>
+                                <Directory Id="dir05D08BB2DF8529CE328465EC9A3C1A78" Name="lucide_icons_flutter" ShortName="t-4lb5mv">
+                                    <Directory Id="dir99144E632D908D3391DC04CAB6F80C1A" Name="assets">
+                                        <Component Id="cmpE49150A00738C4BC109754382DBCCCAF" Guid="{F39CDD0D-9055-4377-8466-9FA5D4B8AC08}" Win64="yes">
+                                            <File Id="filFAFBF679B81240CC9F49FED96320D2F7" Name="lucide.ttf" KeyPath="yes" DiskId="1" Source="SourceDir\File\filFAFBF679B81240CC9F49FED96320D2F7" />
+                                        </Component>
+                                        <Directory Id="dir195F46270AB8CB61704ABAE5F8353B04" Name="build_font" ShortName="y56bhasc">
+                                            <Component Id="cmp348A099C97C707363501D34531D2E38B" Guid="{5F6C9989-1C4B-4226-96C0-7481A03EBECB}" Win64="yes">
+                                                <File Id="fil09C6EA773FFBA7070A39E15246FD827C" Name="LucideVariable-w100.ttf" KeyPath="yes" ShortName="zjsx5bxc.ttf" DiskId="1" Source="SourceDir\File\fil09C6EA773FFBA7070A39E15246FD827C" />
+                                            </Component>
+                                            <Component Id="cmp7D22AF7F0683E87FD0CEC9200DF4D71C" Guid="{B73E887B-5D19-4494-B2DE-EC3D9D679372}" Win64="yes">
+                                                <File Id="fil3A8E3FE9465E01528AC80913CB6D8899" Name="LucideVariable-w200.ttf" KeyPath="yes" ShortName="-uctjhht.ttf" DiskId="1" Source="SourceDir\File\fil3A8E3FE9465E01528AC80913CB6D8899" />
+                                            </Component>
+                                            <Component Id="cmp222CCA279C6A9BBF2688A6DC6CBD0790" Guid="{F2A9F5A6-AA0E-466A-A9CB-74C08D28E5B6}" Win64="yes">
+                                                <File Id="fil32DBFFDEBF485A347AC6F4C9AE01EF15" Name="LucideVariable-w300.ttf" KeyPath="yes" ShortName="5t3c3mig.ttf" DiskId="1" Source="SourceDir\File\fil32DBFFDEBF485A347AC6F4C9AE01EF15" />
+                                            </Component>
+                                            <Component Id="cmpF7D57CC22DFFB240D5D1E15E49522191" Guid="{46A94F37-F4C9-4587-9E55-653406AEBBE6}" Win64="yes">
+                                                <File Id="filBDF87A93751ABBFAA2C820CD4EC7F753" Name="LucideVariable-w400.ttf" KeyPath="yes" ShortName="itee6_lx.ttf" DiskId="1" Source="SourceDir\File\filBDF87A93751ABBFAA2C820CD4EC7F753" />
+                                            </Component>
+                                            <Component Id="cmp668807F29342554DACBF5FD282203699" Guid="{DE9D33C7-CFB5-4D8F-AD7D-9B8BEBC091C6}" Win64="yes">
+                                                <File Id="fil186BA055A435B06865C7C76793141111" Name="LucideVariable-w500.ttf" KeyPath="yes" ShortName="1ssdk0-i.ttf" DiskId="1" Source="SourceDir\File\fil186BA055A435B06865C7C76793141111" />
+                                            </Component>
+                                            <Component Id="cmp5E56323EE83F9196195EE53938EAE44A" Guid="{6F482970-BDC8-49FE-B025-911322B3CC20}" Win64="yes">
+                                                <File Id="filBF5C0CF319A9CD2CFC1FA5A1D6B4927C" Name="LucideVariable-w600.ttf" KeyPath="yes" ShortName="iartjp6i.ttf" DiskId="1" Source="SourceDir\File\filBF5C0CF319A9CD2CFC1FA5A1D6B4927C" />
+                                            </Component>
+                                        </Directory>
+                                    </Directory>
+                                </Directory>
+                                <Directory Id="dir9C5D3671F0DCA47EFD9B3CB29D11F38C" Name="shadcn_ui" ShortName="8xuleo8q">
+                                    <Directory Id="dir1C83E65004CB36D3AE6169BBB7A37191" Name="fonts">
+                                        <Component Id="cmp6DC92490BB11B0D8352A272CEE99EE40" Guid="{D120B9D8-B101-47B6-A862-6B2834D75EE0}" Win64="yes">
+                                            <File Id="fil34AA1A177011077EF8420C1952C93207" Name="Geist%5Bwght%5D.ttf" KeyPath="yes" ShortName="ol0or1tv.ttf" DiskId="1" Source="SourceDir\File\fil34AA1A177011077EF8420C1952C93207" />
+                                        </Component>
+                                        <Component Id="cmpFDC56B1E957B59FC684A0E3B21D76D30" Guid="{0C08CC2F-E36A-48D7-B720-EFBE9357DCD6}" Win64="yes">
+                                            <File Id="filD954B3EFAB1D46E439EAA54E7B747313" Name="GeistMono%5Bwght%5D.ttf" KeyPath="yes" ShortName="stbinvtl.ttf" DiskId="1" Source="SourceDir\File\filD954B3EFAB1D46E439EAA54E7B747313" />
+                                        </Component>
+                                    </Directory>
+                                </Directory>
+                            </Directory>
+                        </Directory>
+                    </Directory>
+                </Directory>
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ProgramMenuDir" Name="FreeBuff Gateway Admin" ShortName="cvt0fto4">
+                    <Component Id="CmpStartMenuShortcut" Guid="{EDEC606B-7A5F-5FE5-8144-5203993E3051}" Win64="yes">
+                        <RegistryValue Id="regD91CAF51AEF032D6699FF88EF98C1313" Root="HKCU" Key="Software\dev.freebuff\FreeBuff Gateway Admin" Name="installed" Value="1" Type="integer" KeyPath="yes" />
+                        <RemoveFolder Id="RemoveProgramMenuDir" Directory="ProgramMenuDir" On="uninstall" />
+                        <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuDir" Name="FreeBuff Gateway Admin" ShortName="gorjpst5" Description="FreeBuff Proxy Gateway Admin" Icon="AppIcon" WorkingDirectory="INSTALLFOLDER" Advertise="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+        </Directory>
+        <Feature Id="MainFeature" Level="1" Title="FreeBuff Gateway Admin">
+            <ComponentRef Id="CmpStartMenuShortcut" />
+            <ComponentRef Id="CmpDesktopShortcut" />
+            <ComponentRef Id="cmp2CDA999E920E73A62806C4A5E0ABBF64" />
+            <ComponentRef Id="cmpDC22F85144003CB2F05080B8CF79FC46" />
+            <ComponentRef Id="cmp3BB0D51B25391038F81AEDCB2F949949" />
+            <ComponentRef Id="cmpCF83D7D65587D05A151D1E25702E167F" />
+            <ComponentRef Id="cmp0E0DCB81807E433F9DBCEB0D089B25B5" />
+            <ComponentRef Id="cmp362972CB336FCADAB6FAD4E58ABB50C0" />
+            <ComponentRef Id="cmp7A9B0136F23F84A4A09D4D0E28D8636B" />
+            <ComponentRef Id="cmp90671292812F4FFA17B66812D7B02F23" />
+            <ComponentRef Id="cmpB22BCD9EFB853D38668ABE777CBF404C" />
+            <ComponentRef Id="cmp9475753282C5250DEC233DF924257EDD" />
+            <ComponentRef Id="cmp995EB1479D86208A86E88112F9873FE0" />
+            <ComponentRef Id="cmpE49150A00738C4BC109754382DBCCCAF" />
+            <ComponentRef Id="cmp348A099C97C707363501D34531D2E38B" />
+            <ComponentRef Id="cmp7D22AF7F0683E87FD0CEC9200DF4D71C" />
+            <ComponentRef Id="cmp222CCA279C6A9BBF2688A6DC6CBD0790" />
+            <ComponentRef Id="cmpF7D57CC22DFFB240D5D1E15E49522191" />
+            <ComponentRef Id="cmp668807F29342554DACBF5FD282203699" />
+            <ComponentRef Id="cmp5E56323EE83F9196195EE53938EAE44A" />
+            <ComponentRef Id="cmp6DC92490BB11B0D8352A272CEE99EE40" />
+            <ComponentRef Id="cmpFDC56B1E957B59FC684A0E3B21D76D30" />
+            <ComponentRef Id="cmpB754D63122F49081C0DAAE0074FBD9C1" />
+            <ComponentRef Id="cmp14E84BBADE26D929C9F8A72C4CFCDFF1" />
+        </Feature>
+        <Icon Id="AppIcon" SourceFile="FILE NOT EXPORTED, USE THE dark.exe -x OPTION TO EXPORT BINARIES" />
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." Schedule="afterInstallValidate" />
+        <Media Id="1" Cabinet="cab1.cab" EmbedCab="yes" />
+        <Property Id="ALLUSERS" Value="1" />
+        <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+        <Property Id="WIX_DOWNGRADE_DETECTED" Secure="yes" />
+        <Property Id="WIX_UPGRADE_DETECTED" Secure="yes" />
+        <UIRef Id="WixUI_InstallDir" />
+    </Product>
+</Wix>

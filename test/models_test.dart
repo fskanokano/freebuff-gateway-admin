@@ -58,6 +58,31 @@ void main() {
       expect(p.isOk, isFalse);
       expect(p.status, 'ok'); // 原始 status 保留，展示层用 maint 徽标
     });
+
+    test('解析扩展字段（spend/tier/country）', () {
+      final p = ProxyInfo.fromJson({
+        'name': 'x',
+        'spend_24h': 1.5,
+        'spend_week': 10.25,
+        'spend_month': 45.0,
+        'tier': 'plus',
+        'country': 'US',
+      });
+      expect(p.spend24h, 1.5);
+      expect(p.spendWeek, 10.25);
+      expect(p.spendMonth, 45.0);
+      expect(p.tier, 'plus');
+      expect(p.country, 'US');
+    });
+
+    test('扩展字段缺失容错', () {
+      final p = ProxyInfo.fromJson({'name': 'x'});
+      expect(p.spend24h, isNull);
+      expect(p.spendWeek, isNull);
+      expect(p.spendMonth, isNull);
+      expect(p.tier, isNull);
+      expect(p.country, isNull);
+    });
   });
 
   group('GatewayStats', () {
@@ -200,19 +225,40 @@ void main() {
       expect(c.runtimeManaged, isTrue);
       expect(c.adminKeyMasked, 'ab***cd');
     });
+
+    test('toJson/fromJson 往返（可保存字段）', () {
+      final c = GatewayConfig(
+        proxies: [
+          ProxyConfig(name: 'p1', url: 'https://a.x', apiKey: 'secret', remark: '主线路'),
+        ],
+        pinMode: 'header',
+        probeMode: 'scan',
+        pinTtl: 120,
+        stateTtl: 90,
+        depletedProbe: 300,
+        downProbe: 60,
+        probeTimeout: 5000,
+        chatTimeout: 60000,
+        maxAttempts: 4,
+      );
+      final round = GatewayConfig.fromJson(c.toJson());
+      expect(round.proxies.length, 1);
+      expect(round.proxies.first.name, 'p1');
+      expect(round.proxies.first.apiKey, 'secret');
+      expect(round.proxies.first.remark, '主线路');
+      expect(round.pinMode, 'header');
+      expect(round.probeMode, 'scan');
+      expect(round.pinTtl, 120);
+      expect(round.stateTtl, 90);
+      expect(round.depletedProbe, 300);
+      expect(round.downProbe, 60);
+      expect(round.probeTimeout, 5000);
+      expect(round.chatTimeout, 60000);
+      expect(round.maxAttempts, 4);
+    });
   });
 
   group('工具', () {
-    test('statusLabel 中文映射', () {
-      expect(statusLabel('ok'), '正常');
-      expect(statusLabel('depleted'), '额度耗尽');
-      expect(statusLabel('maint'), '维护中');
-      expect(statusLabel('unknown'), 'unknown');
-    });
-
-    test('relativeTime 处理 null', () {
-      expect(relativeTime(null), '—');
-    });
 
     test('ProxyConfig toJson 往返', () {
       final p = ProxyConfig(name: 'a', url: 'https://a.x', apiKey: 'k', remark: '备用');

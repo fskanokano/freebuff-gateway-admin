@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="FreeBuff Gateway Admin"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="dev.freebuff"
+           UpgradeCode="{8F2E7C5D-1A34-4B6E-9C8D-2F1E0D9C8B7A}">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Platform="x64"
+             Description="FreeBuff Proxy Gateway Admin"
+             Manufacturer="dev.freebuff" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <Icon Id="AppIcon" SourceFile="$(var.AppIcon)" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="FreeBuff Gateway Admin" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ProgramMenuDir" Name="FreeBuff Gateway Admin" />
+      </Directory>
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <Feature Id="MainFeature" Title="FreeBuff Gateway Admin" Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentRef Id="CmpStartMenuShortcut" />
+      <ComponentRef Id="CmpDesktopShortcut" />
+    </Feature>
+
+    <Component Id="CmpStartMenuShortcut" Directory="ProgramMenuDir" Guid="*">
+      <Shortcut Id="StartMenuShortcut" Name="FreeBuff Gateway Admin"
+                Description="FreeBuff Proxy Gateway Admin"
+                Target="[INSTALLFOLDER]gateway_admin.exe"
+                Icon="AppIcon"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="RemoveProgramMenuDir" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\dev.freebuff\FreeBuff Gateway Admin"
+                     Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpDesktopShortcut" Directory="DesktopFolder" Guid="*">
+      <Shortcut Id="DesktopShortcut" Name="FreeBuff Gateway Admin"
+                Description="FreeBuff Proxy Gateway Admin"
+                Target="[INSTALLFOLDER]gateway_admin.exe"
+                Icon="AppIcon"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RegistryValue Root="HKCU" Key="Software\dev.freebuff\FreeBuff Gateway Admin"
+                     Name="desktop" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <UIRef Id="WixUI_InstallDir" />
+  </Product>
+</Wix>

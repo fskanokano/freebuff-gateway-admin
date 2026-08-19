@@ -5,8 +5,10 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 
+import '../l10n/l10n_ext.dart';
 import '../state/app_state.dart';
 import '../widgets/common.dart';
+import 'analytics_page.dart';
 import 'logs_page.dart';
 import 'overview_page.dart';
 import 'proxies_page.dart';
@@ -27,19 +29,27 @@ class _ShellPageState extends State<ShellPage> {
 
   late final List<Widget> _pages;
 
-  static const _tabs = [
-    (CupertinoIcons.chart_bar, CupertinoIcons.chart_bar_fill, '仪表盘'),
-    (CupertinoIcons.square_stack, CupertinoIcons.square_stack_fill, '代理'),
-    (CupertinoIcons.list_bullet, CupertinoIcons.list_bullet_indent, '日志'),
-    (CupertinoIcons.wand_stars, CupertinoIcons.wand_stars, '测试'),
-    (CupertinoIcons.settings, CupertinoIcons.settings_solid, '设置'),
-  ];
+  List<(IconData, IconData, String)> _tabs(BuildContext context) => [
+        (CupertinoIcons.chart_bar, CupertinoIcons.chart_bar_fill,
+            context.l10n.tabDashboard),
+        (CupertinoIcons.chart_pie, CupertinoIcons.chart_pie_fill,
+            context.l10n.tabAnalytics),
+        (CupertinoIcons.square_stack, CupertinoIcons.square_stack_fill,
+            context.l10n.tabProxies),
+        (CupertinoIcons.list_bullet, CupertinoIcons.list_bullet_indent,
+            context.l10n.tabLogs),
+        (CupertinoIcons.wand_stars, CupertinoIcons.wand_stars,
+            context.l10n.tabSmoke),
+        (CupertinoIcons.settings, CupertinoIcons.settings_solid,
+            context.l10n.tabSettings),
+      ];
 
   @override
   void initState() {
     super.initState();
     _pages = [
       OverviewPage(state: widget.state),
+      AnalyticsPage(state: widget.state),
       ProxiesPage(state: widget.state),
       LogsPage(state: widget.state),
       SmokePage(state: widget.state),
@@ -49,9 +59,10 @@ class _ShellPageState extends State<ShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.of(context).size.width >= 840;
+    final w = MediaQuery.of(context).size.width;
+    final wide = w >= 840;
+    final extraWide = w >= 1200;
     final content = IndexedStack(index: _index, children: _pages);
-    // Tab 切换: 内容区淡入（IndexedStack 保持各页状态）
     final animated = TweenAnimationBuilder<double>(
       key: ValueKey(_index),
       tween: Tween(begin: 0, end: 1),
@@ -70,7 +81,7 @@ class _ShellPageState extends State<ShellPage> {
       child: wide
           ? Row(
               children: [
-                _rail(context),
+                _rail(context, extraWide: extraWide),
                 Expanded(child: animated),
               ],
             )
@@ -105,7 +116,7 @@ class _ShellPageState extends State<ShellPage> {
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 children: [
-                  for (final (i, t) in _tabs.indexed)
+                  for (final (i, t) in _tabs(context).indexed)
                     Expanded(
                       child: TapFeedback(
                         onTap: () => setState(() => _index = i),
@@ -144,13 +155,14 @@ class _ShellPageState extends State<ShellPage> {
     );
   }
 
-  /// 自绘宽屏侧边栏。
-  Widget _rail(BuildContext context) {
+  /// 自绘宽屏侧边栏：≥1200px 显示文字横排（224px），否则图标竖排（88px）。
+  Widget _rail(BuildContext context, {bool extraWide = false}) {
     final primary = schemeColor(context);
     final muted = mutedColor(context);
     final dark = isDark(context);
+    final tabs = _tabs(context);
     return Container(
-      width: 88,
+      width: extraWide ? 224 : 88,
       decoration: BoxDecoration(
         color: (dark ? const Color(0xFF09090B) : CupertinoColors.white)
             .withValues(alpha: 0.8),
@@ -160,40 +172,91 @@ class _ShellPageState extends State<ShellPage> {
       ),
       child: SafeArea(
         child: Column(
+          crossAxisAlignment:
+              extraWide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 12),
-            Icon(CupertinoIcons.arrow_2_circlepath,
-                size: 26, color: primary),
-            const SizedBox(height: 20),
-            for (final (i, t) in _tabs.indexed)
-              TapFeedback(
-                onTap: () => setState(() => _index = i),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  child: Column(
-                    children: [
-                      Icon(
-                        i == _index ? t.$2 : t.$1,
-                        size: 22,
-                        color: i == _index ? primary : muted,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        t.$3,
+            const SizedBox(height: 14),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: extraWide ? 20 : 0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CupertinoIcons.arrow_2_circlepath,
+                      size: 26, color: primary),
+                  if (extraWide) ...[
+                    const SizedBox(width: 10),
+                    Text('FreeBuff',
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: i == _index
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: i == _index ? primary : muted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            color: fgColor(context))),
+                  ],
+                ],
               ),
+            ),
+            const SizedBox(height: 20),
+            for (final (i, t) in tabs.indexed)
+              extraWide
+                  ? _railItemWide(context, i, t, primary, muted)
+                  : _railItemNarrow(context, i, t, primary, muted),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _railItemNarrow(BuildContext context, int i,
+      (IconData, IconData, String) t, Color primary, Color muted) {
+    return TapFeedback(
+      onTap: () => setState(() => _index = i),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        child: Column(
+          children: [
+            Icon(i == _index ? t.$2 : t.$1,
+                size: 22, color: i == _index ? primary : muted),
+            const SizedBox(height: 4),
+            Text(t.$3,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight:
+                        i == _index ? FontWeight.w600 : FontWeight.w500,
+                    color: i == _index ? primary : muted)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _railItemWide(BuildContext context, int i,
+      (IconData, IconData, String) t, Color primary, Color muted) {
+    final selected = i == _index;
+    return TapFeedback(
+      onTap: () => setState(() => _index = i),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected
+                ? primary.withValues(alpha: isDark(context) ? 0.2 : 0.1)
+                : CupertinoColors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(selected ? t.$2 : t.$1,
+                  size: 20, color: selected ? primary : muted),
+              const SizedBox(width: 12),
+              Text(t.$3,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight:
+                          selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? primary : muted)),
+            ],
+          ),
         ),
       ),
     );

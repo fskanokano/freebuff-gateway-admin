@@ -171,4 +171,143 @@ void main() {
       expect(captured.url.toString(), 'https://gw.example.com/admin/api/overview');
     });
   });
+
+  group('备份导出/导入', () {
+    test('exportBundle 生成带版本号 bundle 且 settings 为 camelCase', () async {
+      final client = MockClient((req) async {
+        expect(req.url.path, '/admin/api/config');
+        return http.Response(
+          jsonEncode({
+            'config': {
+              'proxies': [
+                {'name': 'a', 'url': 'https://a.x', 'apiKey': 'k1', 'remark': 'r'}
+              ],
+              'pin_mode': 'header',
+              'probe_mode': 'scan',
+              'pin_ttl': 120,
+              'state_ttl': 90,
+              'depleted_probe': 300,
+              'down_probe': 60,
+              'probe_timeout': 5000,
+              'chat_timeout': 60000,
+              'max_attempts': 4,
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+      final bundle = await apiWith(client).exportBundle();
+      expect(bundle['version'], 1);
+      expect(bundle['kind'], 'freebuff-gateway-admin-backup');
+      expect(bundle['exportedAt'], isA<String>());
+      expect(bundle['proxies'], hasLength(1));
+      final settings = bundle['settings'] as Map;
+      expect(settings['pinMode'], 'header');
+      expect(settings['pinTtl'], 120);
+      expect(settings.containsKey('pin_mode'), isFalse);
+    });
+
+    test('importBundle 空代理列表抛 GatewayException', () async {
+      final client = MockClient(
+          (req) async => http.Response('{"saved":true}', 200,
+              headers: {'content-type': 'application/json'}));
+      await expectLater(
+        apiWith(client).importBundle({'version': 1, 'proxies': []}),
+        throwsA(isA<GatewayException>()),
+      );
+    });
+
+    test('importBundle 非法 URL 抛 GatewayException', () async {
+      final client = MockClient(
+          (req) async => http.Response('{"saved":true}', 200,
+              headers: {'content-type': 'application/json'}));
+      await expectLater(
+        apiWith(client).importBundle({
+          'version': 1,
+          'proxies': [
+            {'url': 'ftp://x', 'apiKey': 'k'}
+          ]
+        }),
+        throwsA(isA<GatewayException>()),
+      );
+    });
+
+    test('importBundle 缺 apiKey 抛 GatewayException', () async {
+      final client = MockClient(
+          (req) async => http.Response('{"saved":true}', 200,
+              headers: {'content-type': 'application/json'}));
+      await expectLater(
+        apiWith(client).importBundle({
+          'version': 1,
+          'proxies': [
+            {'url': 'https://a.x'}
+          ]
+        }),
+        throwsA(isA<GatewayException>()),
+      );
+    });
+
+    test('importBundle 不支持的版本抛 GatewayException', () async {
+      final client = MockClient(
+          (req) async => http.Response('{"saved":true}', 200,
+              headers: {'content-type': 'application/json'}));
+      await expectLater(
+        apiWith(client).importBundle({'version': 2, 'proxies': [{'url': 'https://a.x', 'apiKey': 'k'}]}),
+        throwsA(isA<GatewayException>()),
+      );
+    });
+
+    test('importBundle 成功依次保存 proxies 与 settings', () async {
+      final captured = <http.Request>[];
+      final client = MockClient((req) async {
+        captured.add(req);
+        return http.Response('{"saved":true}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      await apiWith(client).importBundle({
+        'version': 1,
+        'proxies': [
+          {'name': 'a', 'url': 'https://a.x', 'apiKey': 'k'}
+        ],
+        'settings': {'pinMode': 'client', 'maxAttempts': 3},
+      });
+      expect(captured, hasLength(2));
+      final b1 = jsonDecode(captured[0].body) as Map<String, dynamic>;
+      expect(b1.containsKey('proxies'), isTrue);
+      final b2 = jsonDecode(captured[1].body) as Map<String, dynamic>;
+      expect((b2['settings'] as Map)['pinMode'], 'client');
+      expect((b2['settings'] as Map)['maxAttempts'], 3);
+    });
+
+    test('importBundle 非法/越界 settings 在写入前即抛异常（原子性）', () async {
+      var requests = 0;
+      final client = MockClient((req) async {
+        requests++;
+        return http.Response('{"saved":true}', 200,
+            headers: {'content-type': 'application/json'});
+      });
+      Future<void> run(Map<String, dynamic> settings) => apiWith(client)
+          .importBundle({
+            'version': 1,
+            'proxies': [
+              {'url': 'https://a.x', 'apiKey': 'k'}
+            ],
+            'settings': settings,
+          });
+      await expectLater(
+          run({'pinMode': 'bogus'}), throwsA(isA<GatewayException>()));
+      await expectLater(
+          run({'probeMode': 'invalid'}), throwsA(isA<GatewayException>()));
+      await expectLater(
+          run({'maxAttempts': 99}), throwsA(isA<GatewayException>()));
+      await expectLater(
+          run({'maxAttempts': 0}), throwsA(isA<GatewayException>()));
+      await expectLater(
+          run({'pinTtl': 1}), throwsA(isA<GatewayException>()));
+      await expectLater(
+          run({'probeTimeout': 100}), throwsA(isA<GatewayException>()));
+      expect(requests, 0); // 所有非法输入都未触发任何网络写入
+    });
+  });
 }

@@ -32,17 +32,38 @@ class GatewayApi {
 
   /// 统一 GET。
   Future<Map<String, dynamic>> _get(String path) async {
-    final resp = await _client.get(_uri(path), headers: _headers).timeout(_timeout);
-    return _decode(resp);
+    try {
+      final resp =
+          await _client.get(_uri(path), headers: _headers).timeout(_timeout);
+      return _decode(resp);
+    } on GatewayException {
+      rethrow;
+    } catch (e) {
+      throw _asNetworkError(e);
+    }
   }
 
   /// 统一 POST。
   Future<Map<String, dynamic>> _post(String path, [Object? body]) async {
-    final resp = await _client
-        .post(_uri(path),
-            headers: _headers, body: body == null ? null : jsonEncode(body))
-        .timeout(_timeout);
-    return _decode(resp);
+    try {
+      final resp = await _client
+          .post(_uri(path),
+              headers: _headers, body: body == null ? null : jsonEncode(body))
+          .timeout(_timeout);
+      return _decode(resp);
+    } on GatewayException {
+      rethrow;
+    } catch (e) {
+      throw _asNetworkError(e);
+    }
+  }
+
+  /// 网络/超时异常 → GatewayException，统一 UI 提示（不泄漏原始 SocketException 文本）。
+  GatewayException _asNetworkError(Object e) {
+    if (e is TimeoutException) {
+      return GatewayException('请求超时（30s 无响应）', code: 'timeout');
+    }
+    return GatewayException('网络不可达或连接失败', code: 'network_error');
   }
 
   /// 解析响应；非 2xx 且带 error 体时抛 GatewayException。
@@ -170,6 +191,149 @@ class GatewayApi {
 
   /// 当前会话钉住状态 + 最近路由。
   Future<PinStatus> pinStatus() async => PinStatus.fromJson(await _get('/admin/api/pin'));
+
+  /// 导出配置备份 bundle（含明文 proxy apiKey，UI 需警告用户勿外传）。
+  Future<Map<String, dynamic>> exportBundle() async {
+    final cfg = await config();
+    return {
+      'version': 1,
+      'kind': 'freebuff-gateway-admin-backup',
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'proxies': cfg.proxies.map((p) => p.toJson()).toList(),
+      'settings': _settingsToCamel(cfg),
+    };
+  }
+
+  /// 导入备份 bundle：先本地校验，再 saveProxies + saveSettings（沿用"部分保存"语义，
+  /// 避免整体替换）。校验失败抛 GatewayException(code=invalid_bundle)。
+  Future<void> importBundle(Map<String, dynamic> bundle) async {
+    if (bundle['version'] is! int || bundle['version'] != 1) {
+      throw GatewayException('不支持的备份版本（需 version=1）', code: 'invalid_bundle');
+    }
+    final proxies = _parseBundleProxies(bundle);
+    final settings = _parseBundleSettings(bundle);
+    await saveProxies(proxies);
+    if (settings.isNotEmpty) await saveSettings(settings);
+  }
+
+  static Map<String, dynamic> _settingsToCamel(GatewayConfig c) => {
+        if (c.pinMode != null) 'pinMode': c.pinMode,
+        if (c.probeMode != null) 'probeMode': c.probeMode,
+        if (c.pinTtl != null) 'pinTtl': c.pinTtl,
+        if (c.stateTtl != null) 'stateTtl': c.stateTtl,
+        if (c.depletedProbe != null) 'depletedProbe': c.depletedProbe,
+        if (c.downProbe != null) 'downProbe': c.downProbe,
+        if (c.probeTimeout != null) 'probeTimeout': c.probeTimeout,
+        if (c.chatTimeout != null) 'chatTimeout': c.chatTimeout,
+        if (c.maxAttempts != null) 'maxAttempts': c.maxAttempts,
+      };
+
+  static List<ProxyConfig> _parseBundleProxies(Map<String, dynamic> bundle) {
+    final raw = bundle['proxies'];
+    if (raw is! List || raw.isEmpty) {
+      throw GatewayException('备份缺少代理列表（proxies 必须为非空数组）', code: 'invalid_bundle');
+    }
+    final seen = <String>{};
+    final seenUrls = <String>{};
+    final out = <ProxyConfig>[];
+    for (var i = 0; i < raw.length; i++) {
+      final item = raw[i];
+      if (item is! Map) {
+        throw GatewayException('代理 #${i + 1} 格式非法', code: 'invalid_bundle');
+      }
+      final m = item.cast<String, dynamic>();
+      final url = (m['url']?.toString() ?? '').replaceAll(RegExp(r'/+$'), '');
+      if (!RegExp(r'^https?://[^/]+').hasMatch(url)) {
+        throw GatewayException('代理 #${i + 1}: URL 非法（需 http(s)://）', code: 'invalid_bundle');
+      }
+      final apiKey = m['apiKey']?.toString() ?? '';
+      if (apiKey.isEmpty) {
+        throw GatewayException('代理 #${i + 1}: 缺少 apiKey', code: 'invalid_bundle');
+      }
+      final rawName = (m['name']?.toString() ?? '')
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9-]'), '');
+      final name = rawName.isEmpty ? 'p${i + 1}' : rawName;
+      if (seen.contains(name)) {
+        throw GatewayException('代理名称重复: $name', code: 'invalid_bundle');
+      }
+      if (seenUrls.contains(url)) {
+        throw GatewayException('代理 URL 重复: $url', code: 'invalid_bundle');
+      }
+      seen.add(name);
+      seenUrls.add(url);
+      out.add(ProxyConfig(
+        name: name,
+        url: url,
+        apiKey: apiKey,
+        remark: m['remark']?.toString(),
+      ));
+    }
+    return out;
+  }
+
+  static Map<String, dynamic> _parseBundleSettings(Map<String, dynamic> bundle) {
+    final raw = bundle['settings'];
+    if (raw == null) return <String, dynamic>{};
+    if (raw is! Map) {
+      throw GatewayException('settings 必须是对象', code: 'invalid_bundle');
+    }
+    final s = raw.cast<String, dynamic>();
+    final out = <String, dynamic>{};
+
+    // 枚举校验（与后端 /admin/api/config 校验矩阵一致）。
+    final pinMode = s['pinMode']?.toString();
+    if (pinMode != null && pinMode.isNotEmpty) {
+      if (!const {'client', 'header', 'off'}.contains(pinMode)) {
+        throw GatewayException('pinMode 非法（需 client/header/off）',
+            code: 'invalid_bundle');
+      }
+      out['pinMode'] = pinMode;
+    }
+    final probeMode = s['probeMode']?.toString();
+    if (probeMode != null && probeMode.isNotEmpty) {
+      if (!const {'smart', 'scan'}.contains(probeMode)) {
+        throw GatewayException('probeMode 非法（需 smart/scan）',
+            code: 'invalid_bundle');
+      }
+      out['probeMode'] = probeMode;
+    }
+
+    // 整数范围校验（与后端校验矩阵一致）。
+    int parseInt(Object? v, String label) {
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) {
+        final n = int.tryParse(v);
+        if (n != null) return n;
+      }
+      throw GatewayException('$label 非法（需整数）', code: 'invalid_bundle');
+    }
+
+    const specs = <String, (String, int, int?)>{
+      'pinTtl': ('pinTtl', 60, null),
+      'stateTtl': ('stateTtl', 60, null),
+      'depletedProbe': ('depletedProbe', 60, null),
+      'downProbe': ('downProbe', 30, null),
+      'probeTimeout': ('probeTimeout', 500, null),
+      'chatTimeout': ('chatTimeout', 1000, null),
+      'maxAttempts': ('maxAttempts', 1, 6),
+    };
+    for (final e in specs.entries) {
+      final v = s[e.key];
+      if (v == null) continue;
+      final (label, min, max) = e.value;
+      final n = parseInt(v, label);
+      if (n < min || (max != null && n > max)) {
+        throw GatewayException(
+          max == null ? '$label 越界（需 ≥ $min）' : '$label 越界（需 $min-$max）',
+          code: 'invalid_bundle',
+        );
+      }
+      out[e.key] = n;
+    }
+    return out;
+  }
 
   /// smoke 测试：走完整链路发真实请求。
   Future<SmokeResult> smoke({String? model, String prompt = 'ping', bool stream = false}) async {
