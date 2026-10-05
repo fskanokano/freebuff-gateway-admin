@@ -1,11 +1,7 @@
 name: build-android
 
 on:
-  workflow_dispatch:            # 手动触发，省 Actions 分钟
-  push:
-    branches: [ main ]          # push 到 main 自动构建（lint + 测试）
-    tags: [ 'v*' ]              # 打 tag 自动出 release APK
-
+  workflow_dispatch:
 env:
   FLUTTER_CHANNEL: stable
 
